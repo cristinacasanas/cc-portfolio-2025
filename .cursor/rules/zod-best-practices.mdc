@@ -1,0 +1,9 @@
+---
+description: Best practices for schema validation and type inference with Zod
+globs: **/*.{ts,tsx,js,jsx}
+alwaysApply: false
+---
+- Use Zod for runtime type checking and validation
+- Implement proper error handling for validation failures
+- Utilize Zod's type inference for TypeScript integration
+- Create reusable schemas for common data structures

@@ -1,0 +1,9 @@
+---
+description: Best practices for form handling with TanStack React Form
+globs:  **/*.{ts,tsx,js,jsx}
+alwaysApply: false
+---
+- Use field validation with Zod for type-safe forms
+- Implement proper form submission handling
+- Utilize form state management for complex forms
+- Keep form logic separate from UI components

@@ -1,0 +1,9 @@
+---
+description: Best practices for styling with Tailwind CSS
+globs: **/*.{ts,tsx,js,jsx,css}
+alwaysApply: false
+---
+- Use utility classes for most styling needs
+- Create custom components for reusable UI patterns
+- Utilize responsive design utilities effectively
+- Keep CSS specificity low by avoiding custom classes
