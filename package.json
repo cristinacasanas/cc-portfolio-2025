@@ -16,6 +16,7 @@
     "generate:types": "cd studio && sanity schema extract && sanity typegen generate"
   },
   "dependencies": {
+    "@faker-js/faker": "^9.7.0",
     "@sanity/client": "^6.29.1",
     "@sanity/image-url": "^1.1.0",
     "@sanity/preview-kit": "^6.0.8",
@@ -26,8 +27,11 @@
     "@tanstack/react-router": "^1.114.3",
     "@tanstack/react-router-devtools": "^1.114.3",
     "@tanstack/react-store": "^0.7.0",
+    "@tanstack/react-virtual": "^3.13.6",
     "@tanstack/router-plugin": "^1.114.3",
     "@tanstack/store": "^0.7.0",
+    "framer-motion": "^12.9.2",
+    "intersection-observer": "^0.12.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwindcss": "^4.0.6",
