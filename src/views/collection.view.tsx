@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { collection } from "../mock/collection"
+import { CollectionNav } from "../components/layout/collection.nav"
 
 export default function InfiniteImageGrid() {
   const gridRef = useRef<HTMLDivElement>(null)
@@ -14,16 +15,18 @@ export default function InfiniteImageGrid() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [momentum, setMomentum] = useState({ x: 0, y: 0 })
   const [isLoading, setIsLoading] = useState(false)
+  const [imagesSizes, setImagesSizes] = useState<Record<string, { width: number; height: number }>>({})
 
   const momentumRef = useRef({ x: 0, y: 0 })
   const lastFrameTime = useRef(performance.now())
   const animationFrameId = useRef<number | null>(null)
 
   // Configuration optimisée
-  const CELL_SIZE = 250
+  const CELL_SIZE = 350 // Taille de base des cellules
   const GRID_LIMIT = 500 // Limite de la grille dans chaque direction
   const MOMENTUM_DECAY = 0.95
-  const CELL_GAP = 10 // Espace entre les cellules en pixels
+  const MAX_IMAGE_WIDTH = 300 // Largeur maximale pour les images elles-mêmes
+  const CELL_GAP = 30 // Espace entre les cellules
 
   // Calculer la taille réelle des cellules en fonction du zoom
   const actualCellSize = useMemo(() => CELL_SIZE * zoom, [zoom])
@@ -32,13 +35,31 @@ export default function InfiniteImageGrid() {
   // Fonction pour obtenir l'URL de l'image en fonction de la position
   const getImageUrl = useCallback(
     (row: number, col: number): string => {
-      // Calculer un index déterministe pour sélectionner une image depuis la collection
-      // Utiliser le modulo pour s'assurer que l'index est dans les limites du tableau
+
+			
       const index = Math.abs((row * 10 + col) % collection.length)
       return collection[index].image
     },
     [],
   )
+
+  // Précharger les tailles d'images
+  const preloadImageSize = useCallback((url: string, cellKey: string) => {
+    // Vérifier si on a déjà les dimensions
+    if (imagesSizes[cellKey]) return
+
+    const img = new Image()
+    img.onload = () => {
+      setImagesSizes(prev => ({
+        ...prev,
+        [cellKey]: {
+          width: img.naturalWidth,
+          height: img.naturalHeight
+        }
+      }))
+    }
+    img.src = url
+  }, [imagesSizes])
 
   // Calculer les cellules visibles en fonction de la position et de la taille de la fenêtre
   const updateVisibleCells = useCallback(() => {
@@ -52,10 +73,10 @@ export default function InfiniteImageGrid() {
     const totalCellSize = actualCellSize + actualCellGap
 
     // Calculer les indices des cellules visibles
-    const startCol = Math.floor(-position.x / totalCellSize) - 2
-    const startRow = Math.floor(-position.y / totalCellSize) - 2
-    const endCol = startCol + Math.ceil(viewportWidth / totalCellSize) + 4
-    const endRow = startRow + Math.ceil(viewportHeight / totalCellSize) + 4
+    const startCol = Math.floor(-position.x / totalCellSize) - 3
+    const startRow = Math.floor(-position.y / totalCellSize) - 3
+    const endCol = startCol + Math.ceil(viewportWidth / totalCellSize) + 6
+    const endRow = startRow + Math.ceil(viewportHeight / totalCellSize) + 6
 
     // Générer la liste des cellules visibles
     const cells: Array<{ row: number; col: number }> = []
@@ -257,8 +278,8 @@ export default function InfiniteImageGrid() {
     return visibleCells.map(({ row, col }) => {
       // Taille totale de chaque cellule avec l'espace
       const totalCellSize = actualCellSize + actualCellGap
-
-      // Calculer la position pour cette cellule (avec espace entre chaque cellule)
+      
+      // Calculer la position pour cette cellule
       const left = col * totalCellSize
       const top = row * totalCellSize
 
@@ -267,36 +288,80 @@ export default function InfiniteImageGrid() {
 
       // Obtenir l'URL de l'image
       const imageUrl = getImageUrl(row, col)
-
+      
+      // Précharger l'image pour obtenir ses dimensions
+      preloadImageSize(imageUrl, cellKey)
+      
+      // Récupérer les dimensions de l'image si disponibles, sinon utiliser valeurs par défaut
+      const imageSize = imagesSizes[cellKey]
+      
+      // Si l'image n'est pas encore chargée, on affiche un placeholder
+      if (!imageSize) {
+        return (
+          <div
+            key={cellKey}
+            className="absolute flex items-center justify-center"
+            style={{
+              left: `${position.x + left}px`,
+              top: `${position.y + top}px`,
+              width: `${actualCellSize}px`,
+              height: `${actualCellSize}px`,
+            }}
+          >
+            <div className="text-gray-300 text-sm">Chargement...</div>
+          </div>
+        )
+      }
+      
+      // Calculer les dimensions d'affichage en respectant le ratio d'aspect
+      let displayWidth = imageSize.width
+      let displayHeight = imageSize.height
+      
+      // Limiter la taille maximale tout en préservant le ratio
+      if (displayWidth > MAX_IMAGE_WIDTH) {
+        const ratio = MAX_IMAGE_WIDTH / displayWidth
+        displayWidth = MAX_IMAGE_WIDTH
+        displayHeight = imageSize.height * ratio
+      }
+      
+      // S'assurer que la hauteur ne dépasse pas non plus la taille de la cellule
+      const maxHeight = actualCellSize * 0.9
+      if (displayHeight > maxHeight) {
+        const ratio = maxHeight / displayHeight
+        displayHeight = maxHeight
+        displayWidth = displayWidth * ratio
+      }
+      
+      // Appliquer le zoom
+      displayWidth = displayWidth * zoom
+      displayHeight = displayHeight * zoom
+      
       return (
         <div
           key={cellKey}
-          className="absolute border border-gray-200 transition-opacity overflow-hidden shadow-md rounded-md"
+          className="absolute"
           style={{
-            left: `${position.x + left}px`,
-            top: `${position.y + top}px`,
-            width: `${actualCellSize}px`,
-            height: `${actualCellSize}px`,
+            left: `${position.x + left + (actualCellSize - displayWidth) / 2}px`,
+            top: `${position.y + top + (actualCellSize - displayHeight) / 2}px`,
+            width: `${displayWidth}px`,
+            height: `${displayHeight}px`,
           }}
         >
           <img
             src={imageUrl}
             alt={`Image ${row},${col}`}
-            className="w-full h-full object-contain transition-opacity hover:opacity-90"
+            className="w-full h-full object-contain"
             loading="lazy"
             onError={(e) => {
               // Fallback en cas d'erreur de chargement
               const target = e.target as HTMLImageElement
-              target.src = `/placeholder.svg?height=${actualCellSize}&width=${actualCellSize}&text=${row},${col}`
+              target.src = `/placeholder.svg?height=${displayHeight}&width=${displayWidth}&text=${row},${col}`
             }}
           />
-          <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 opacity-0 hover:opacity-100 transition-opacity">
-            {row}, {col}
-          </div>
         </div>
       )
     })
-  }, [visibleCells, position, actualCellSize, actualCellGap, getImageUrl])
+  }, [visibleCells, position, actualCellSize, actualCellGap, zoom, imagesSizes, getImageUrl, preloadImageSize])
 
   // Centrer la grille au premier rendu
   useEffect(() => {
@@ -310,9 +375,9 @@ export default function InfiniteImageGrid() {
   }, [])
 
   return (
-    <div className="flex flex-col h-screen">
-      <main
-        className="flex-1 relative overflow-hidden bg-gray-100"
+    <div className="fixed inset-0 pt-12 overflow-hidden bg-gray-50">
+      <div
+        className="absolute inset-0 overflow-hidden"
         ref={gridRef}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -326,7 +391,12 @@ export default function InfiniteImageGrid() {
           </div>
         )}
         <div className="absolute inset-0">{renderedCells}</div>
-      </main>
+      </div>
+      <div className="fixed bottom-8 left-0 right-0 flex justify-center z-10 pointer-events-none">
+        <div className="pointer-events-auto">
+          <CollectionNav />
+        </div>
+      </div>
     </div>
   )
 }

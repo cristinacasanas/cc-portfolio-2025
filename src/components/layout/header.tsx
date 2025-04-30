@@ -1,3 +1,3 @@
 export const Header = () => {
-	return <header className="flex-1 h-8 sticky top-0 z-10 bg-white border-b border-border">Header</header>;
+	return <header className="fixed top-0 left-0 right-0 h-12 z-20 bg-white/80 backdrop-blur-sm border-b border-border">Header</header>;
 };
