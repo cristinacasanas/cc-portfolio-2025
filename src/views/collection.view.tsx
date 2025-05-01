@@ -1,12 +1,33 @@
 "use client"
 
 import type React from "react"
+import clsx from "clsx"
 
+// import clsx from "clsx"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { collection } from "../mock/collection"
 import { CollectionNav } from "../components/layout/collection.nav"
+import { useSearch } from "@tanstack/react-router"
+import { DragAndDropView } from "./drag-and-drop.view"
 
-export default function InfiniteImageGrid() {
+interface CollectionViewProps {
+  initialView?: string
+}
+
+export default function CollectionView({ initialView = "canvas" }: CollectionViewProps) {
+  // Use TanStack Router's useSearch directly instead of nuqs
+  const search = useSearch({ from: "/collection" })
+  
+  // Get the view from the search params
+  const view = search.view || initialView
+  
+  // Return different view based on the query parameter
+  return view === "grid" ? <InfiniteImageGrid /> : <DragAndDropView />
+}
+
+
+
+function InfiniteImageGrid() {
   const gridRef = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
@@ -35,8 +56,6 @@ export default function InfiniteImageGrid() {
   // Fonction pour obtenir l'URL de l'image en fonction de la position
   const getImageUrl = useCallback(
     (row: number, col: number): string => {
-
-			
       const index = Math.abs((row * 10 + col) % collection.length)
       return collection[index].image
     },
