@@ -12,7 +12,7 @@
 
 import { Route as rootRoute } from './routes/__root'
 import { Route as ProjectsImport } from './routes/projects'
-import { Route as CollectionImport } from './routes/collection'
+import { Route as LabImport } from './routes/lab'
 import { Route as IndexImport } from './routes/index'
 import { Route as DemoTanstackQueryImport } from './routes/demo.tanstack-query'
 import { Route as DemoStoreImport } from './routes/demo.store'
@@ -27,9 +27,9 @@ const ProjectsRoute = ProjectsImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const CollectionRoute = CollectionImport.update({
-  id: '/collection',
-  path: '/collection',
+const LabRoute = LabImport.update({
+  id: '/lab',
+  path: '/lab',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -74,11 +74,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexImport
       parentRoute: typeof rootRoute
     }
-    '/collection': {
-      id: '/collection'
-      path: '/collection'
-      fullPath: '/collection'
-      preLoaderRoute: typeof CollectionImport
+    '/lab': {
+      id: '/lab'
+      path: '/lab'
+      fullPath: '/lab'
+      preLoaderRoute: typeof LabImport
       parentRoute: typeof rootRoute
     }
     '/projects': {
@@ -123,7 +123,7 @@ declare module '@tanstack/react-router' {
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/collection': typeof CollectionRoute
+  '/lab': typeof LabRoute
   '/projects': typeof ProjectsRoute
   '/demo/store': typeof DemoStoreRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
@@ -133,7 +133,7 @@ export interface FileRoutesByFullPath {
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/collection': typeof CollectionRoute
+  '/lab': typeof LabRoute
   '/projects': typeof ProjectsRoute
   '/demo/store': typeof DemoStoreRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
@@ -144,7 +144,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
-  '/collection': typeof CollectionRoute
+  '/lab': typeof LabRoute
   '/projects': typeof ProjectsRoute
   '/demo/store': typeof DemoStoreRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
@@ -156,7 +156,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/collection'
+    | '/lab'
     | '/projects'
     | '/demo/store'
     | '/demo/tanstack-query'
@@ -165,7 +165,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/collection'
+    | '/lab'
     | '/projects'
     | '/demo/store'
     | '/demo/tanstack-query'
@@ -174,7 +174,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/collection'
+    | '/lab'
     | '/projects'
     | '/demo/store'
     | '/demo/tanstack-query'
@@ -185,7 +185,7 @@ export interface FileRouteTypes {
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  CollectionRoute: typeof CollectionRoute
+  LabRoute: typeof LabRoute
   ProjectsRoute: typeof ProjectsRoute
   DemoStoreRoute: typeof DemoStoreRoute
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
@@ -195,7 +195,7 @@ export interface RootRouteChildren {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  CollectionRoute: CollectionRoute,
+  LabRoute: LabRoute,
   ProjectsRoute: ProjectsRoute,
   DemoStoreRoute: DemoStoreRoute,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
@@ -214,7 +214,7 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
-        "/collection",
+        "/lab",
         "/projects",
         "/demo/store",
         "/demo/tanstack-query",
@@ -225,8 +225,8 @@ export const routeTree = rootRoute
     "/": {
       "filePath": "index.tsx"
     },
-    "/collection": {
-      "filePath": "collection.tsx"
+    "/lab": {
+      "filePath": "lab.tsx"
     },
     "/projects": {
       "filePath": "projects.tsx"
