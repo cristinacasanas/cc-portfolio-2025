@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import Hamburger from "../ui/icons/hamburger";
 
 export const Header = () => {
 	return (
@@ -13,7 +14,7 @@ export const Header = () => {
 				<div
 					data-mode="Light"
 					data-status="Default"
-					className="flex items-center justify-center gap-2.5 px-1 py-0.5"
+					className="hidden items-center justify-center gap-2.5 px-1 py-0.5 md:flex"
 				>
 					<Link to="/about" className="justify-start font-serif text-sm">
 						À Propos
@@ -22,7 +23,7 @@ export const Header = () => {
 				<div
 					data-mode="Light"
 					data-status="Default"
-					className="flex items-center justify-center gap-2.5 px-1 py-0.5"
+					className="hidden items-center justify-center gap-2.5 px-1 py-0.5 md:flex"
 				>
 					<Link to="/lab" className="justify-start font-serif text-sm">
 						LAB
@@ -31,7 +32,7 @@ export const Header = () => {
 				<div
 					data-langue="FR"
 					data-mode="Light"
-					className="flex w-[120px] items-center justify-between"
+					className="hidden w-[120px] items-center justify-between md:flex"
 				>
 					<div
 						data-mode="Light"
@@ -43,10 +44,15 @@ export const Header = () => {
 					<div
 						data-mode="Light"
 						data-status="Default"
-						className="flex items-center justify-center gap-2.5 px-1 py-0.5"
+						className="hidden items-center justify-center gap-2.5 px-1 py-0.5 md:flex"
 					>
 						<div className="justify-start font-mono text-sm">[FR]</div>
 					</div>
+				</div>
+				<div className="flex items-center justify-center gap-2.5 px-1 py-0.5 md:hidden">
+					<button type="button" className="relative cursor-pointer">
+						<Hamburger stroke="black" />
+					</button>
 				</div>
 			</nav>
 		</header>
