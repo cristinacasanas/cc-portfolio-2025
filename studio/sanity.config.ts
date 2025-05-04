@@ -7,8 +7,8 @@ export default defineConfig({
   name: 'default',
   title: 'cc-portfolio',
 
-  projectId: 'xozw2ash',
-  dataset: 'staging',
+  projectId: process.env.SANITY_PROJECT_ID || '8gdwrje8',
+  dataset: process.env.SANITY_DATASET || 'development',
 
   plugins: [structureTool(), visionTool()],
 

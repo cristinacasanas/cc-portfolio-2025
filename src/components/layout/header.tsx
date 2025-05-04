@@ -1,7 +1,11 @@
+import { aboutStore } from "@/stores/about.store";
 import { Link } from "@tanstack/react-router";
+import { useStore } from "@tanstack/react-store";
 import Hamburger from "../ui/icons/hamburger";
 
 export const Header = () => {
+	const { isOpen, toggle } = useStore(aboutStore, (state) => state);
+
 	return (
 		<header className="fixed top-0 right-0 left-0 z-20 inline-flex h-[var(--header-height)] border-black border-border border-b bg-background/60 px-3 backdrop-blur-sm">
 			<nav className="inline-flex w-full items-center justify-between">
@@ -11,14 +15,24 @@ export const Header = () => {
 					</Link>
 				</div>
 
-				<div
-					data-mode="Light"
-					data-status="Default"
-					className="hidden items-center justify-center gap-2.5 px-1 py-0.5 md:flex"
-				>
-					<Link to="/about" className="justify-start font-serif text-sm">
-						À Propos
-					</Link>
+				<div className="hidden w-16 items-center justify-center gap-2.5 px-1 py-0.5 md:flex">
+					{!isOpen ? (
+						<button
+							type="button"
+							onClick={toggle}
+							className="cursor-pointer justify-start font-serif text-sm"
+						>
+							À Propos
+						</button>
+					) : (
+						<button
+							type="button"
+							onClick={toggle}
+							className="cursor-pointer justify-start font-serif text-sm"
+						>
+							X Fermer
+						</button>
+					)}
 				</div>
 				<div
 					data-mode="Light"
@@ -50,7 +64,11 @@ export const Header = () => {
 					</div>
 				</div>
 				<div className="flex items-center justify-center gap-2.5 px-1 py-0.5 md:hidden">
-					<button type="button" className="relative cursor-pointer">
+					<button
+						type="button"
+						className="relative cursor-pointer"
+						onClick={toggle}
+					>
 						<Hamburger stroke="black" />
 					</button>
 				</div>
