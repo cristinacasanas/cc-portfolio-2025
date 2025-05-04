@@ -1,15 +1,23 @@
 import { aboutStore } from "@/stores/about.store";
+import { menuMobileStore } from "@/stores/menu-mobile.store";
+import { overlayStore } from "@/stores/overlay.store";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
+import Close from "../ui/icons/close";
 import Hamburger from "../ui/icons/hamburger";
 
 export const Header = () => {
 	const { isOpen, toggle } = useStore(aboutStore, (state) => state);
+	const { isOpen: isOpenMenu, toggle: toggleMenu } = useStore(
+		menuMobileStore,
+		(state) => state,
+	);
+	const { toggle: toggleOverlay } = useStore(overlayStore, (state) => state);
 
 	return (
-		<header className="fixed top-0 right-0 left-0 z-20 inline-flex h-[var(--header-height)] border-black border-border border-b bg-background/60 px-3 backdrop-blur-sm">
+		<header className="fixed top-0 right-0 left-0 z-20 inline-flex h-[var(--header-height)] border-black border-border border-b bg-background/60 px-1.5 backdrop-blur-sm md:px-3">
 			<nav className="inline-flex w-full items-center justify-between">
-				<div className="inline-flex items-center justify-center gap-2.5 px-1 py-0.5">
+				<div className="inline-flex items-center justify-center gap-2.5">
 					<Link to="/" className="justify-start font-serif text-sm">
 						CRISTINA CASAÑAS
 					</Link>
@@ -19,7 +27,10 @@ export const Header = () => {
 					{!isOpen ? (
 						<button
 							type="button"
-							onClick={toggle}
+							onClick={() => {
+								toggleOverlay();
+								toggle();
+							}}
 							className="cursor-pointer justify-start font-serif text-sm"
 						>
 							À Propos
@@ -27,49 +38,42 @@ export const Header = () => {
 					) : (
 						<button
 							type="button"
-							onClick={toggle}
+							onClick={() => {
+								toggleOverlay();
+								toggle();
+							}}
 							className="cursor-pointer justify-start font-serif text-sm"
 						>
 							X Fermer
 						</button>
 					)}
 				</div>
-				<div
-					data-mode="Light"
-					data-status="Default"
-					className="hidden items-center justify-center gap-2.5 px-1 py-0.5 md:flex"
-				>
+				<div className="hidden items-center justify-center gap-2.5 px-1 py-0.5 md:flex">
 					<Link to="/lab" className="justify-start font-serif text-sm">
 						LAB
 					</Link>
 				</div>
-				<div
-					data-langue="FR"
-					data-mode="Light"
-					className="hidden w-[120px] items-center justify-between md:flex"
-				>
-					<div
-						data-mode="Light"
-						data-status="Default"
-						className="flex items-center justify-center gap-2.5 px-1 py-0.5"
-					>
+				<div className="hidden w-[120px] items-center justify-between md:flex">
+					<div className="flex items-center justify-center gap-2.5 px-1 py-0.5">
 						<div className="justify-start font-mono text-sm">Langue</div>
 					</div>
-					<div
-						data-mode="Light"
-						data-status="Default"
-						className="hidden items-center justify-center gap-2.5 px-1 py-0.5 md:flex"
-					>
+					<div className="hidden items-center justify-center gap-2.5 px-1 py-0.5 md:flex">
 						<div className="justify-start font-mono text-sm">[FR]</div>
 					</div>
 				</div>
-				<div className="flex items-center justify-center gap-2.5 px-1 py-0.5 md:hidden">
+				<div className="flex items-center justify-center gap-2.5 md:hidden">
 					<button
 						type="button"
 						className="relative cursor-pointer"
-						onClick={toggle}
+						onClick={() => {
+							toggleMenu();
+						}}
 					>
-						<Hamburger stroke="black" />
+						{isOpenMenu ? (
+							<Close stroke="black" />
+						) : (
+							<Hamburger stroke="black" />
+						)}
 					</button>
 				</div>
 			</nav>

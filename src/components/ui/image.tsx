@@ -1,6 +1,6 @@
 import clsx from "clsx";
 
-type AspectRatio = "16/9" | "4/3" | "1/1" | "3/4" | "9/16";
+type AspectRatio = "16/9" | "4/3" | "1/1" | "3/4" | "9/16" | "4/5";
 
 type ImageProps = React.ImgHTMLAttributes<HTMLImageElement> & {
 	ratio?: AspectRatio;
@@ -10,7 +10,10 @@ type ImageProps = React.ImgHTMLAttributes<HTMLImageElement> & {
 export const Image = ({ ratio, className, ...props }: ImageProps) => {
 	return (
 		<img
-			className={clsx("w-full", ratio, className)}
+			className={clsx(
+				`aspect-[${ratio}] w-full h-auto object-cover`,
+				className,
+			)}
 			{...props}
 			alt={props.alt}
 		/>

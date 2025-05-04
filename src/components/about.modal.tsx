@@ -5,7 +5,6 @@ import { AnimatePresence, motion } from "framer-motion";
 
 export const AboutModal = () => {
 	const { isOpen } = useStore(aboutStore, (state) => state);
-
 	return (
 		<AnimatePresence>
 			{isOpen && (

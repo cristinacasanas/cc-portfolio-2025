@@ -17,7 +17,7 @@ function App() {
 	console.log(data);
 
 	return (
-		<div className="col-span-4 flex flex-col gap-20 overflow-y-auto bg-background-primary">
+		<div className="col-span-4 flex flex-col gap-10 md:gap-20 overflow-y-auto bg-background-primary">
 			<ProjectCard />
 			<ProjectCard />
 			<ProjectCard />

@@ -1,11 +1,11 @@
 import { Store } from "@tanstack/store";
 
-interface AboutState {
+interface OverlayState {
 	isOpen: boolean;
 	toggle: () => void;
 }
 
-const store = new Store<AboutState>({
+const store = new Store<OverlayState>({
 	isOpen: false,
 	toggle: () => {},
 });
@@ -22,4 +22,4 @@ store.setState((prev) => ({
 	toggle: toggleImpl,
 }));
 
-export const aboutStore = store;
+export const overlayStore = store;
