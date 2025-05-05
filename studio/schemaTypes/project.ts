@@ -9,7 +9,7 @@ export default defineType({
       name: "title",
       title: "Title",
       type: "string",
-      validation: (Rule) => Rule.required(),
+      validation: (Rule: any) => Rule.required(),
     }),
     defineField({
       name: "slug",
@@ -19,7 +19,7 @@ export default defineType({
         source: "title",
         maxLength: 96,
       },
-      validation: (Rule) => Rule.required(),
+      validation: (Rule: any) => Rule.required(),
     }),
     defineField({
       name: "thumbnail",
@@ -28,7 +28,7 @@ export default defineType({
       options: {
         hotspot: true,
       },
-      validation: (Rule) => Rule.required(),
+      validation: (Rule: any) => Rule.required(),
     }),
     defineField({
       name: "categories",
@@ -45,7 +45,7 @@ export default defineType({
           name: "fr",
           title: "Français",
           type: "text",
-          validation: (Rule) => Rule.required(),
+          validation: (Rule: any) => Rule.required(),
         },
         {
           name: "en",
@@ -53,7 +53,7 @@ export default defineType({
           type: "text",
         },
       ],
-      validation: (Rule) => Rule.required(),
+      validation: (Rule: any) => Rule.required(),
     }),
     defineField({
       name: "coverImage",
@@ -62,7 +62,7 @@ export default defineType({
       options: {
         hotspot: true,
       },
-      validation: (Rule) => Rule.required(),
+      validation: (Rule: any) => Rule.required(),
     }),
     defineField({
       name: "gallery",

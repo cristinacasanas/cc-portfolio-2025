@@ -1,4 +1,4 @@
-import { defineField, defineType, Rule, RuleBuilder } from "sanity";
+import { defineField, defineType } from "sanity";
 
 export default defineType({
   name: "category",
@@ -14,7 +14,7 @@ export default defineType({
           name: "fr",
           title: "Français",
           type: "string",
-          validation: (Rule) => Rule.required(),
+          validation: (Rule: any) => Rule.required(),
         },
         {
           name: "en",
@@ -22,7 +22,7 @@ export default defineType({
           type: "string",
         },
       ],
-      validation: (Rule) => Rule.required(),
+      validation: (Rule: any) => Rule.required(),
     }),
     defineField({
       name: "slug",
@@ -32,7 +32,7 @@ export default defineType({
         source: (doc: any) => doc.title?.fr || "",
         maxLength: 96,
       },
-      validation: (Rule) => Rule.required(),
+      validation: (Rule: any) => Rule.required(),
     }),
   ],
   preview: {

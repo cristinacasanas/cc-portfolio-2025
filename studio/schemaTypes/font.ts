@@ -9,7 +9,7 @@ export default defineType({
       name: "name",
       title: "Font Name",
       type: "string",
-      validation: (Rule) => Rule.required(),
+      validation: (Rule: any) => Rule.required(),
     }),
     defineField({
       name: "fontFile",
@@ -18,7 +18,7 @@ export default defineType({
       options: {
         accept: ".ttf,.otf,.woff,.woff2",
       },
-      validation: (Rule) => Rule.required(),
+      validation: (Rule: any) => Rule.required(),
     }),
     defineField({
       name: "fontWeight",
@@ -27,7 +27,7 @@ export default defineType({
       options: {
         list: [100, 200, 300, 400, 500, 600, 700, 800, 900],
       },
-      validation: (Rule) => Rule.required(),
+      validation: (Rule: any) => Rule.required(),
     }),
     defineField({
       name: "isDefault",

@@ -32,7 +32,6 @@ export default defineConfig({
 	},
 	build: {
 		rollupOptions: {
-			external: ["studio"],
 			output: {
 				manualChunks: (id) => {
 					if (id.includes("node_modules")) {
