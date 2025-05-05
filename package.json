@@ -46,6 +46,8 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@sanity/vision": "^3.86.1",
+    "sanity": "^3.86.1",
     "@biomejs/biome": "1.9.4",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.2.0",
