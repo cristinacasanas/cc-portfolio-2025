@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import React from "react";
 
 // Tableau d'IDs uniques pour le carousel
-const CAROUSEL_ITEMS = Array.from({ length: 8 }, (_, i) => ({
+const CAROUSEL_ITEMS = Array.from({ length: 16 }, (_, i) => ({
 	id: `carousel-item-${i}`,
 	src: "https://placehold.co/108x61",
 	alt: `Carousel image ${i + 1}`,
@@ -25,21 +25,21 @@ const ProjectCard = () => {
 const CoverImage = () => {
 	return (
 		<div className="inline-flex w-full flex-col items-start justify-start gap-1.5 self-stretch md:gap-2.5">
-			<Image ratio="16/9" src="https://placehold.co/934x526" alt="Cover" />
+			<Image
+				className="w-full"
+				ratio="16/9"
+				src="https://placehold.co/934x526"
+				alt="Cover"
+			/>
 		</div>
 	);
 };
 
 const Carousel = () => {
 	return (
-		<div className="inline-flex w-full items-center justify-between gap-1.5 overflow-x-scroll md:gap-2.5">
+		<div className="inline-flex w-full items-center gap-1.5 overflow-x-scroll md:gap-2.5">
 			{CAROUSEL_ITEMS.map((item) => (
-				<Image
-					key={item.id}
-					className="aspect-[16/9] w-full"
-					src={item.src}
-					alt={item.alt}
-				/>
+				<Image key={item.id} ratio="16/9" src={item.src} alt={item.alt} />
 			))}
 		</div>
 	);

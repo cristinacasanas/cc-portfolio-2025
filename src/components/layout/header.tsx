@@ -49,7 +49,11 @@ export const Header = () => {
 					)}
 				</div>
 				<div className="hidden items-center justify-center gap-2.5 px-1 py-0.5 md:flex">
-					<Link to="/lab" className="justify-start font-serif text-sm">
+					<Link
+						to="/lab"
+						search={{ view: "canvas" }}
+						className="justify-start font-serif text-sm"
+					>
 						LAB
 					</Link>
 				</div>

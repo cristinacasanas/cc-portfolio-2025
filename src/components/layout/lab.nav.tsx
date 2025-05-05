@@ -14,6 +14,7 @@ export const LabNav = () => {
 					className={`px-3 py-2 transition-colors uppercase ${
 						view === "grid" ? "text-blue-600" : "hover:text-blue-600"
 					}`}
+					aria-current={view === "grid" ? "page" : undefined}
 				>
 					Grid
 				</Link>
@@ -23,6 +24,7 @@ export const LabNav = () => {
 					className={`px-3 py-2 transition-colors uppercase ${
 						view === "canvas" ? "text-blue-600" : "hover:text-blue-600"
 					}`}
+					aria-current={view === "canvas" ? "page" : undefined}
 				>
 					Canvas
 				</Link>

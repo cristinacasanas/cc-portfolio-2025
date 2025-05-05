@@ -11,7 +11,7 @@ export const Image = ({ ratio, className, ...props }: ImageProps) => {
 	return (
 		<img
 			className={clsx(
-				`aspect-[${ratio}] w-full h-auto object-cover`,
+				`aspect-[${ratio}] w-auto h-auto object-cover`,
 				className,
 			)}
 			{...props}

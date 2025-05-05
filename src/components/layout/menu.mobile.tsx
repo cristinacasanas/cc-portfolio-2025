@@ -58,7 +58,9 @@ export const MenuMobile = () => {
 						</div>
 						<div className="inline-flex items-center justify-center gap-2.5 px-1 py-0.5">
 							<div className="justify-start font-['PP_Editorial_New'] font-extralight text-color-black-solid text-base leading-[21px]">
-								<Link to="/lab">LAB</Link>
+								<Link to="/lab" search={{ view: "canvas" }}>
+									LAB
+								</Link>
 							</div>
 						</div>
 					</div>

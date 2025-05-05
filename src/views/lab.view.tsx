@@ -3,7 +3,6 @@
 import type React from "react";
 
 import { LabNav } from "@/components/layout/lab.nav";
-import { useSearch } from "@tanstack/react-router";
 // import clsx from "clsx"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { collection } from "../mock/collection";
@@ -14,13 +13,10 @@ interface LabViewProps {
 }
 
 export default function LabView({ initialView = "canvas" }: LabViewProps) {
-	// Use TanStack Router's useSearch directly instead of nuqs
-	const search = useSearch({ from: "/lab" });
+	// Use the initialView prop directly
+	const view = initialView;
 
-	// Get the view from the search params
-	const view = search.view || initialView;
-
-	// Return different view based on the query parameter
+	// Return different view based on the initialView parameter
 	return view === "grid" ? <InfiniteImageGrid /> : <DragAndDropView />;
 }
 
@@ -75,6 +71,7 @@ function InfiniteImageGrid() {
 						height: img.naturalHeight,
 					},
 				}));
+				setIsLoading(false);
 			};
 			img.src = url;
 		},
@@ -142,8 +139,8 @@ function InfiniteImageGrid() {
 
 		// Réduire le momentum progressivement
 		momentumRef.current = {
-			x: momentumRef.current.x * Math.pow(MOMENTUM_DECAY, deltaTime),
-			y: momentumRef.current.y * Math.pow(MOMENTUM_DECAY, deltaTime),
+			x: momentumRef.current.x * MOMENTUM_DECAY ** deltaTime,
+			y: momentumRef.current.y * MOMENTUM_DECAY ** deltaTime,
 		};
 
 		setMomentum(momentumRef.current);
@@ -375,7 +372,7 @@ function InfiniteImageGrid() {
 				>
 					<img
 						src={imageUrl}
-						alt={`Image ${row},${col}`}
+						alt="okay"
 						className="w-full h-full object-contain"
 						loading="lazy"
 						onError={(e) => {
