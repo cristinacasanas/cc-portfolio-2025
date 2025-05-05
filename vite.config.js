@@ -11,10 +11,10 @@ export default defineConfig({
 		port: 5173,
 		hmr: {
 			overlay: true,
-		}
+		},
 	},
 	plugins: [
-		TanStackRouterVite({ 
+		TanStackRouterVite({
 			autoCodeSplitting: true,
 			routeMatcher: "src/routes/**/*.tsx",
 		}),
@@ -34,11 +34,11 @@ export default defineConfig({
 		rollupOptions: {
 			output: {
 				manualChunks: (id) => {
-					if (id.includes('node_modules')) {
-						return 'vendor';
+					if (id.includes("node_modules")) {
+						return "vendor";
 					}
-				}
-			}
-		}
-	}
+				},
+			},
+		},
+	},
 });

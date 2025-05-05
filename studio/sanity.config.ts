@@ -15,10 +15,4 @@ export default defineConfig({
   schema: {
     types: schemaTypes,
   },
-
-  vite: {
-    build: {
-      chunkSizeWarningLimit: 1000,
-    },
-  },
 })

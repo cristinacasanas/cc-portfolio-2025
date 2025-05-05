@@ -1,17 +1,15 @@
-import { defineField, defineType } from "sanity";
-
-export default defineType({
+export default {
   name: "header",
   title: "Header",
   type: "document",
   fields: [
-    defineField({
+    {
       name: "logo",
       title: "Logo Text",
       type: "string",
       validation: (Rule: any) => Rule.required(),
-    }),
-    defineField({
+    },
+    {
       name: "navigation",
       title: "Navigation",
       type: "array",
@@ -50,6 +48,6 @@ export default defineType({
           ],
         },
       ],
-    }),
+    },
   ],
-});
+};
