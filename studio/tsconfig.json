@@ -4,17 +4,13 @@
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
-    "strict": false,
-    "noEmitOnError": false,
-    "noImplicitAny": false,
+    "strict": true,
     "forceConsistentCasingInFileNames": true,
-    "module": "esnext",
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
+    "module": "Preserve",
+    "moduleDetection": "force",
     "isolatedModules": true,
     "jsx": "preserve",
-    "incremental": true,
-    "esModuleInterop": true
+    "incremental": true
   },
   "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules"]
