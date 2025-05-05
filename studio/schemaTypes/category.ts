@@ -14,7 +14,7 @@ export default defineType({
           name: "fr",
           title: "Français",
           type: "string",
-          validation: (Rule) => Rule.required(),
+          validation: (Rule: any) => Rule.required(),
         },
         {
           name: "en",
@@ -22,7 +22,7 @@ export default defineType({
           type: "string",
         },
       ],
-      validation: (Rule) => Rule.required(),
+      validation: (Rule: any) => Rule.required(),
     }),
     defineField({
       name: "slug",
@@ -32,7 +32,7 @@ export default defineType({
         source: (doc: any) => doc.title?.fr || "",
         maxLength: 96,
       },
-      validation: (Rule) => Rule.required(),
+      validation: (Rule: any) => Rule.required(),
     }),
   ],
   preview: {
@@ -40,7 +40,7 @@ export default defineType({
       title: "title.fr",
       titleEn: "title.en",
     },
-    prepare({ title, titleEn }) {
+    prepare({ title, titleEn }: { title?: string; titleEn?: string }) {
       return {
         title: title || titleEn || "No title",
       };
