@@ -1,29 +1,65 @@
 import { ProjectCard } from "@/components/projects";
+import {
+	getAllProjects,
+	getProjectById,
+	getProjectsByCategory,
+} from "@/lib/queries";
 import { client } from "@/lib/sanity";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import type { Project } from "studio/sanity.types";
+import { createFileRoute, useSearch } from "@tanstack/react-router";
+import type { Category, Project } from "studio/sanity.types";
+
+type ProjectWithCategories = Project & {
+	expandedCategories?: Category[];
+};
 
 export const Route = createFileRoute("/")({
 	component: App,
+	validateSearch: (search: Record<string, unknown>) => {
+		const category = search?.category?.toString() || "";
+		const project = search?.project?.toString() || "";
+
+		const result: Record<string, string> = {};
+		if (category) result.category = category;
+		if (project) result.project = project;
+
+		return result;
+	},
 });
 
 function App() {
+	const { category, project } = useSearch({ from: "/" });
+
 	const { data } = useQuery({
-		queryKey: ["projects"],
-		queryFn: () => client.fetch<Project[]>("*[_type == 'project']"),
+		queryKey: ["projects", { category, project }],
+		queryFn: async () => {
+			if (project) {
+				const projectData = await client.fetch<ProjectWithCategories[]>(
+					getProjectById(project),
+				);
+				return projectData;
+			}
+
+			if (category) {
+				const results = await client.fetch<ProjectWithCategories[]>(
+					getProjectsByCategory(category),
+				);
+				return results;
+			}
+
+			const results =
+				await client.fetch<ProjectWithCategories[]>(getAllProjects);
+			return results;
+		},
 	});
 
-	console.log(data);
-
 	return (
-		<div className="col-span-4 flex flex-col gap-10 md:gap-20 overflow-y-auto bg-background-primary">
-			<ProjectCard />
-			<ProjectCard />
-			<ProjectCard />
-			<ProjectCard />
-			<ProjectCard />
-			<ProjectCard />
+		<div className="col-span-4 flex flex-col gap-10 overflow-y-auto bg-background-primary md:gap-20">
+			{data &&
+				data.length > 0 &&
+				data.map((project) => (
+					<ProjectCard key={project._id} project={project} />
+				))}
 		</div>
 	);
 }

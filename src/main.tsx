@@ -20,6 +20,21 @@ const router = createRouter({
 	scrollRestoration: true,
 	defaultStructuralSharing: true,
 	defaultPreloadStaleTime: 0,
+	// @ts-expect-error - L'option transformSearchParams n'est pas encore typée dans la version actuelle
+	transformSearchParams: {
+		parse: (params: string) => Object.fromEntries(new URLSearchParams(params)),
+		serialize: (params: Record<string, string>) => {
+			const searchParams = new URLSearchParams();
+			for (const [key, value] of Object.entries(params)) {
+				if (value !== undefined && value !== null && value !== "") {
+					searchParams.append(key, String(value));
+				}
+			}
+			const searchString = searchParams.toString();
+			// Ne pas ajouter de point d'interrogation si la chaîne est vide
+			return searchString ? `?${searchString}` : "";
+		},
+	},
 });
 
 // Register the router instance for type safety

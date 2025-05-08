@@ -1,7 +1,12 @@
+import { getAllCategories } from "@/lib/queries";
+import { client } from "@/lib/sanity";
 import { overlayStore } from "@/stores/overlay.store";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { AnimatePresence, motion } from "framer-motion";
 import React from "react";
+import type { Category } from "studio/sanity.types";
 import Plus from "./ui/icons/plus";
 
 export const FilterMenu = () => {
@@ -26,6 +31,44 @@ const FilterWrapper = ({ children }: { children: React.ReactNode }) => {
 };
 
 const FilterContent = ({ isOpen }: { isOpen: boolean }) => {
+	const navigate = useNavigate();
+	const { category, project } = useSearch({ from: "/" });
+
+	const { data: categories } = useQuery({
+		queryKey: ["categories"],
+		queryFn: () => client.fetch<Category[]>(getAllCategories),
+	});
+
+	const handleCategoryClick = (categorySlug: string) => {
+		if (categorySlug === "all") {
+			if (project) {
+				navigate({
+					to: "/",
+					search: { project },
+					replace: true,
+				});
+			} else {
+				navigate({
+					to: "/",
+					search: {},
+					replace: true,
+				});
+			}
+		} else {
+			const search: Record<string, string> = { category: categorySlug };
+
+			if (project) {
+				search.project = project;
+			}
+
+			navigate({
+				to: "/",
+				search,
+				replace: true,
+			});
+		}
+	};
+
 	const containerVariants = {
 		hidden: { opacity: 0 },
 		show: {
@@ -71,78 +114,79 @@ const FilterContent = ({ isOpen }: { isOpen: boolean }) => {
 							className="flex flex-col items-start justify-center gap-1.5"
 							variants={itemVariants}
 						>
-							<div
-								data-categories="all"
-								data-status="Active"
+							<button
+								type="button"
+								onClick={() => handleCategoryClick("all")}
 								className="inline-flex items-center justify-center gap-2.5"
 							>
-								<div className="font-mono uppercase leading-none">All</div>
-							</div>
-						</motion.div>
-						<motion.div
-							className="flex flex-col items-start justify-center gap-1.5"
-							variants={itemVariants}
-						>
-							<div className="inline-flex items-center justify-center gap-2.5">
-								<div className="font-mono text-text-secondary text-xs uppercase leading-none">
-									UI/UX
+								<div
+									className={`font-mono uppercase leading-none ${!category ? "text-text-primary" : "text-text-secondary text-xs"}`}
+								>
+									Tous
 								</div>
-							</div>
+							</button>
 						</motion.div>
-						<motion.div
-							className="flex flex-col items-start justify-center gap-1.5"
-							variants={itemVariants}
-						>
-							<div className="inline-flex items-center justify-center gap-2.5">
-								<div className="font-mono text-text-secondary text-xs uppercase leading-none">
-									creative coding
-								</div>
-							</div>
-						</motion.div>
-						<motion.div
-							className="flex flex-col items-start justify-center gap-1.5"
-							variants={itemVariants}
-						>
-							<div className="inline-flex items-center justify-center gap-2.5">
-								<div className="font-mono text-text-secondary text-xs uppercase leading-none">
-									branding
-								</div>
-							</div>
-						</motion.div>
-						<motion.div
-							className="flex flex-col items-start justify-center gap-1.5"
-							variants={itemVariants}
-						>
-							<div className="inline-flex items-center justify-center gap-2.5">
-								<div className="font-mono text-text-secondary text-xs uppercase leading-none">
-									Édition
-								</div>
-							</div>
-						</motion.div>
-						<motion.div
-							className="flex flex-col items-start justify-center gap-1.5"
-							variants={itemVariants}
-						>
-							<div className="inline-flex items-center justify-center gap-2.5">
-								<div className="font-mono text-text-secondary text-xs uppercase leading-none">
-									packaging
-								</div>
-							</div>
-						</motion.div>
+
+						{categories?.map((categoryItem) => (
+							<motion.div
+								key={categoryItem._id}
+								className="flex flex-col items-start justify-center gap-1.5"
+								variants={itemVariants}
+							>
+								<button
+									type="button"
+									onClick={() =>
+										handleCategoryClick(
+											categoryItem.slug?.current || categoryItem._id,
+										)
+									}
+									className="inline-flex items-center justify-center gap-2.5"
+								>
+									<div
+										className={`font-mono uppercase leading-none ${
+											category ===
+											(categoryItem.slug?.current || categoryItem._id)
+												? "text-text-primary"
+												: "text-text-secondary text-xs"
+										}`}
+									>
+										{categoryItem.title?.fr || categoryItem.title?.en || ""}
+									</div>
+								</button>
+							</motion.div>
+						))}
 					</motion.div>
 				</motion.div>
 			)}
 		</AnimatePresence>
 	);
 };
+
 const FilterTrigger = ({
 	isOpen,
 	setIsOpen,
 }: { isOpen: boolean; setIsOpen: (isOpen: boolean) => void }) => {
 	const { toggle } = useStore(overlayStore, (state) => state);
+	const { category } = useSearch({ from: "/" });
+	const { data: categories } = useQuery({
+		queryKey: ["categories"],
+		queryFn: () => client.fetch<Category[]>(getAllCategories),
+	});
+
+	// Find the currently selected category
+	const selectedCategory = React.useMemo(() => {
+		if (!category) return "All";
+
+		const found = categories?.find(
+			(c) => (c.slug?.current || c._id) === category,
+		);
+
+		return found ? found.title?.fr || found.title?.en : "All";
+	}, [category, categories]);
 
 	return (
-		<div
+		<button
+			type="button"
 			className="inline-flex h-16 w-[290px] cursor-pointer items-center justify-between rounded-br rounded-bl bg-background-primary/80 px-4 py-1"
 			onClick={() => {
 				toggle();
@@ -154,6 +198,7 @@ const FilterTrigger = ({
 					setIsOpen(!isOpen);
 				}
 			}}
+			aria-label="Toggle category filter menu"
 		>
 			<div className="inline-flex h-16 flex-col items-start justify-between pt-3 pb-2.5">
 				<h3 className="justify-start font-normal font-serif text-xs leading-loose tracking-tight">
@@ -161,16 +206,13 @@ const FilterTrigger = ({
 				</h3>
 				<div className="inline-flex items-center justify-center gap-2.5">
 					<h4 className="justify-start font-mono uppercase leading-none">
-						All
+						{selectedCategory}
 					</h4>
 				</div>
 			</div>
-			<button
-				type="button"
-				className="flex cursor-pointer items-center justify-start gap-4 self-stretch"
-			>
+			<span className="flex cursor-pointer items-center justify-start gap-4 self-stretch">
 				<Plus className="size-9" isOpen={isOpen} />
-			</button>
-		</div>
+			</span>
+		</button>
 	);
 };

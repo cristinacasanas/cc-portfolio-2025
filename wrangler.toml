@@ -1,6 +1,0 @@
-name = "cristina-casanas-studio"
-compatibility_date = "2024-05-05"
-
-# Configure Pages
-[site]
-bucket = "./dist" 

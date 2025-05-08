@@ -1,7 +1,19 @@
-import { Link } from "@tanstack/react-router";
+import { getAllCategories } from "@/lib/queries";
+import { client } from "@/lib/sanity";
+import { useQuery } from "@tanstack/react-query";
+import { useSearch } from "@tanstack/react-router";
+import clsx from "clsx";
+import type { Category } from "studio/sanity.types";
 import { Sidebar } from "../sidebar";
 
 export const CategoriesSidebar = () => {
+	const { category } = useSearch({ from: "/" });
+
+	const { data } = useQuery({
+		queryKey: ["categories"],
+		queryFn: () => client.fetch<Category[]>(getAllCategories),
+	});
+
 	return (
 		<Sidebar position="left">
 			<div className="flex flex-1 flex-col items-start justify-between pt-14">
@@ -11,43 +23,57 @@ export const CategoriesSidebar = () => {
 							Catégories
 						</h3>
 						<div className="flex flex-col items-start justify-start gap-4 pl-4 font-mono text-[10px] text-text-secondary">
-							<Link to="/" className="justify-start uppercase leading-none">
-								UI /UX
-							</Link>
-							<Link to="/" className="justify-start uppercase leading-none">
-								Creative coding
-							</Link>
-							<Link to="/" className="justify-start uppercase leading-none">
-								branding
-							</Link>
-							<Link to="/" className="justify-start uppercase leading-none">
-								packaging
-							</Link>
-							<Link to="/" className="justify-start uppercase leading-none">
-								Édition
-							</Link>
+							<a
+								href="/"
+								className={clsx(
+									"justify-start uppercase leading-none",
+									!category ? "text-text-primary" : "text-text-secondary",
+								)}
+							>
+								Tous
+							</a>
+
+							{data?.map((categoryItem) => (
+								<a
+									key={categoryItem._id}
+									href={`?category=${categoryItem.slug?.current || categoryItem._id}`}
+									className={clsx(
+										"justify-start uppercase leading-none",
+										category ===
+											(categoryItem.slug?.current || categoryItem._id)
+											? "text-text-primary"
+											: "text-text-secondary",
+									)}
+								>
+									{categoryItem.title?.fr || categoryItem.title?.en || ""}
+								</a>
+							))}
 						</div>
 					</div>
 				</div>
 				<div className="flex flex-col items-start justify-start gap-4 font-serif">
-					<Link
-						to="/"
+					<a
+						href="https://instagram.com"
+						target="_blank"
+						rel="noopener noreferrer"
 						className="justify-start font-normal text-color-black-solid text-xs leading-none"
 					>
 						↗ Instagram
-					</Link>
-					<Link
-						to="/"
+					</a>
+					<a
+						href="https://cosmos.com"
+						target="_blank"
+						rel="noopener noreferrer"
 						className="justify-start font-normal text-color-black-solid text-xs leading-none"
 					>
 						↗ Cosmos
-					</Link>
-					<Link
-						to="/"
+					</a>
+					<a
+						href="mailto:contact@example.com"
 						className="justify-start font-normal text-color-black-solid text-xs leading-none"
 					>
 						↗ Mail
-					</Link>
+					</a>
 				</div>
 			</div>
 		</Sidebar>

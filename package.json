@@ -14,7 +14,7 @@
     "dev:studio": "cd studio && npm run dev",
     "dev:all": "npm run dev & npm run dev:studio",
     "generate:types": "cd studio && sanity schema extract && sanity typegen generate",
-    "seed:projects": "ts-node seed.ts"
+    "seed:projects": "node seed.js"
   },
   "dependencies": {
     "@faker-js/faker": "^9.7.0",
@@ -46,15 +46,15 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@sanity/vision": "^3.86.1",
-    "sanity": "^3.86.1",
     "@biomejs/biome": "1.9.4",
+    "@sanity/vision": "^3.86.1",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.2.0",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.4",
     "jsdom": "^26.0.0",
+    "sanity": "^3.86.1",
     "typescript": "^5.7.2",
     "vite": "^6.1.0",
     "vitest": "^3.0.5",
