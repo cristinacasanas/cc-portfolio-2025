@@ -154,7 +154,7 @@ const ProjectInfo = ({
 				</h3>
 			</div>
 			<div className="flex w-[122px] items-start justify-center gap-1.5 py-0.5 md:gap-2.5">
-				<h3 className="flex w-full justify-start text-center font-mono text-sm leading-[21px] md:justify-center">
+				<h3 className="flex w-full justify-start font-mono text-sm leading-[21px] md:justify-center md:text-center">
 					{project.title}
 				</h3>
 			</div>

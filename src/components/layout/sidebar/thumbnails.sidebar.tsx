@@ -74,9 +74,7 @@ export const ThumbnailsSidebar = () => {
 					top: scrollTop,
 					behavior: "smooth",
 				});
-			}
-
-			else {
+			} else {
 				const sidebarRect = sidebarRef.current.getBoundingClientRect();
 				const thumbRect = activeThumb.getBoundingClientRect();
 

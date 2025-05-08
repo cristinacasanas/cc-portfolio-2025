@@ -13,8 +13,7 @@ export const AboutModal = () => {
 					animate={{ x: 0, opacity: 1 }}
 					exit={{ x: -100, opacity: 0 }}
 					transition={{ duration: 0.3 }}
-					data-device="Desktop"
-					className="absolute top-[var(--header-height)] left-0 z-50 inline-flex h-[982px] h-[calc(100dvh-var(--header-height))] w-[455px] flex-col items-start justify-between border-black border-r bg-background-primary/80 pt-14 pr-2 pb-6 pl-4 backdrop-blur-sm"
+					className="absolute top-[var(--header-height)] left-0 z-50 inline-flex h-[982px] h-[calc(100dvh-var(--header-height))] w-screen md:w-[455px] flex-col items-start justify-between border-black border-r bg-background-primary/80 pt-14 pr-2 pb-6 pl-4 backdrop-blur-sm"
 				>
 					<div className="inline-flex flex-1 items-start justify-between self-stretch">
 						<div className="inline-flex flex-col items-start justify-between self-stretch">
@@ -73,7 +72,7 @@ export const AboutModal = () => {
 						</div>
 						<img
 							className="h-[125px] w-[100px] p-0.5"
-							src="https://placehold.co/100x125"
+							src="/assets/image.png"
 							alt="Portrait de Cristina"
 						/>
 					</div>

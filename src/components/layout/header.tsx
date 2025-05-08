@@ -3,10 +3,13 @@ import { menuMobileStore } from "@/stores/menu-mobile.store";
 import { overlayStore } from "@/stores/overlay.store";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
+import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "../ui/LanguageSwitcher";
 import Close from "../ui/icons/close";
 import Hamburger from "../ui/icons/hamburger";
 
 export const Header = () => {
+	const { t, i18n } = useTranslation();
 	const { isOpen, toggle } = useStore(aboutStore, (state) => state);
 	const { isOpen: isOpenMenu, toggle: toggleMenu } = useStore(
 		menuMobileStore,
@@ -14,11 +17,18 @@ export const Header = () => {
 	);
 	const { toggle: toggleOverlay } = useStore(overlayStore, (state) => state);
 
+	const currentLang = i18n.language.startsWith("en") ? "en" : "fr";
+
 	return (
 		<header className="fixed top-0 right-0 left-0 z-20 inline-flex h-[var(--header-height)] border-black border-border border-b bg-background/60 px-1.5 backdrop-blur-sm md:px-3">
 			<nav className="inline-flex w-full items-center justify-between">
 				<div className="inline-flex items-center justify-center gap-2.5">
-					<Link to="/" className="justify-start font-serif text-sm">
+					{/* @ts-ignore - Ignorer l'erreur de type pour le paramètre lang */}
+					<Link
+						to="/"
+						search={{ lang: currentLang }}
+						className="justify-start font-serif text-sm"
+					>
 						CRISTINA CASAÑAS
 					</Link>
 				</div>
@@ -33,7 +43,7 @@ export const Header = () => {
 							}}
 							className="cursor-pointer justify-start font-serif text-sm"
 						>
-							À Propos
+							{t("about")}
 						</button>
 					) : (
 						<button
@@ -44,7 +54,7 @@ export const Header = () => {
 							}}
 							className="cursor-pointer justify-start font-serif text-sm"
 						>
-							X Fermer
+							{t("close")}
 						</button>
 					)}
 				</div>
@@ -54,15 +64,17 @@ export const Header = () => {
 						search={{ view: "canvas" }}
 						className="justify-start font-serif text-sm"
 					>
-						LAB
+						{t("lab")}
 					</Link>
 				</div>
 				<div className="hidden w-[120px] items-center justify-between md:flex">
 					<div className="flex items-center justify-center gap-2.5 px-1 py-0.5">
-						<div className="justify-start font-mono text-sm">Langue</div>
+						<div className="justify-start font-mono text-sm uppercase">
+							{t("language")}
+						</div>
 					</div>
 					<div className="hidden items-center justify-center gap-2.5 px-1 py-0.5 md:flex">
-						<div className="justify-start font-mono text-sm">[FR]</div>
+						<LanguageSwitcher />
 					</div>
 				</div>
 				<div className="flex items-center justify-center gap-2.5 md:hidden">

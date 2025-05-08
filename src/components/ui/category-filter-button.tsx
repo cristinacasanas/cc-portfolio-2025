@@ -1,5 +1,6 @@
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useNavigate, useRouter, useSearch } from "@tanstack/react-router";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { Category } from "studio/sanity.types";
 
 type CategoryFilterButtonProps = {
@@ -12,26 +13,49 @@ export const CategoryFilterButton: React.FC<CategoryFilterButtonProps> = ({
 	className = "",
 }) => {
 	const navigate = useNavigate();
-	const { category: selectedCategory } = useSearch({ from: "/" });
+	const router = useRouter();
+	const { i18n } = useTranslation();
+	const { category: selectedCategory, project } = useSearch({ from: "/" });
 
 	const handleClick = () => {
-		if (category === "all") {
-			navigate({
-				to: "/",
-				search: {
-					category: undefined as unknown as string,
-				},
-				replace: true,
-			});
-		} else {
-			navigate({
-				to: "/",
-				search: {
-					category: category.slug?.current || category._id,
-				},
-				replace: true,
-			});
+		// Récupérer la langue actuelle
+		const currentLang = i18n.language.startsWith("en") ? "en" : "fr";
+
+		// Récupérer les autres paramètres d'URL actuels
+		const currentSearch = { ...router.state.location.search };
+
+		// Créer un objet search avec lang en premier
+		const search: Record<string, string> = {
+			lang: currentLang,
+		};
+
+		// Ajouter project s'il existe
+		if (project) {
+			search.project = project;
 		}
+
+		// Ajouter category si ce n'est pas "all"
+		if (category !== "all") {
+			search.category = category.slug?.current || category._id;
+		}
+
+		// Ajouter les autres paramètres existants
+		for (const [key, value] of Object.entries(currentSearch)) {
+			if (
+				key !== "lang" &&
+				key !== "project" &&
+				key !== "category" &&
+				value !== undefined
+			) {
+				search[key] = value;
+			}
+		}
+
+		navigate({
+			to: "/",
+			search,
+			replace: true,
+		});
 	};
 
 	// Determine if this button is active

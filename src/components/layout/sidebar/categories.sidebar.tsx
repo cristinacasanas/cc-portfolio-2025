@@ -1,7 +1,7 @@
 import { getAllCategories } from "@/lib/queries";
 import { client } from "@/lib/sanity";
 import { useQuery } from "@tanstack/react-query";
-import { useSearch } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import clsx from "clsx";
 import type { Category } from "studio/sanity.types";
 import { Sidebar } from "../sidebar";
@@ -23,20 +23,23 @@ export const CategoriesSidebar = () => {
 							Catégories
 						</h3>
 						<div className="flex flex-col items-start justify-start gap-4 pl-4 font-mono text-[10px] text-text-secondary">
-							<a
-								href="/"
+							<Link
+								to="/"
 								className={clsx(
 									"justify-start uppercase leading-none",
 									!category ? "text-text-primary" : "text-text-secondary",
 								)}
 							>
 								Tous
-							</a>
+							</Link>
 
 							{data?.map((categoryItem) => (
-								<a
+								<Link
 									key={categoryItem._id}
-									href={`?category=${categoryItem.slug?.current || categoryItem._id}`}
+									to="/"
+									search={{
+										category: categoryItem.slug?.current || categoryItem._id,
+									}}
 									className={clsx(
 										"justify-start uppercase leading-none",
 										category ===
@@ -46,7 +49,7 @@ export const CategoriesSidebar = () => {
 									)}
 								>
 									{categoryItem.title?.fr || categoryItem.title?.en || ""}
-								</a>
+								</Link>
 							))}
 						</div>
 					</div>

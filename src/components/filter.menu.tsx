@@ -14,7 +14,7 @@ export const FilterMenu = () => {
 
 	return (
 		<FilterWrapper>
-			<FilterContent isOpen={isOpen} />
+			<FilterContent isOpen={isOpen} setIsOpen={setIsOpen} />
 			<FilterTrigger isOpen={isOpen} setIsOpen={setIsOpen} />
 		</FilterWrapper>
 	);
@@ -30,44 +30,18 @@ const FilterWrapper = ({ children }: { children: React.ReactNode }) => {
 	);
 };
 
-const FilterContent = ({ isOpen }: { isOpen: boolean }) => {
+const FilterContent = ({
+	isOpen,
+	setIsOpen,
+}: { isOpen: boolean; setIsOpen: (isOpen: boolean) => void }) => {
+	const { category } = useSearch({ from: "/" });
 	const navigate = useNavigate();
-	const { category, project } = useSearch({ from: "/" });
+	const { toggle } = useStore(overlayStore, (state) => state);
 
 	const { data: categories } = useQuery({
 		queryKey: ["categories"],
 		queryFn: () => client.fetch<Category[]>(getAllCategories),
 	});
-
-	const handleCategoryClick = (categorySlug: string) => {
-		if (categorySlug === "all") {
-			if (project) {
-				navigate({
-					to: "/",
-					search: { project },
-					replace: true,
-				});
-			} else {
-				navigate({
-					to: "/",
-					search: {},
-					replace: true,
-				});
-			}
-		} else {
-			const search: Record<string, string> = { category: categorySlug };
-
-			if (project) {
-				search.project = project;
-			}
-
-			navigate({
-				to: "/",
-				search,
-				replace: true,
-			});
-		}
-	};
 
 	const containerVariants = {
 		hidden: { opacity: 0 },
@@ -93,6 +67,23 @@ const FilterContent = ({ isOpen }: { isOpen: boolean }) => {
 		exit: { opacity: 0, x: -10, filter: "blur(10px)" },
 	};
 
+	const handleCategoryClick = (categorySlug?: string) => {
+		toggle();
+		setIsOpen(false);
+
+		if (categorySlug) {
+			navigate({
+				to: "/",
+				search: { category: categorySlug },
+			});
+		} else {
+			navigate({
+				to: "/",
+				search: {},
+			});
+		}
+	};
+
 	return (
 		<AnimatePresence>
 			{isOpen && (
@@ -116,13 +107,15 @@ const FilterContent = ({ isOpen }: { isOpen: boolean }) => {
 						>
 							<button
 								type="button"
-								onClick={() => handleCategoryClick("all")}
-								className="inline-flex items-center justify-center gap-2.5"
+								data-categories="all"
+								data-status="Active"
+								className="inline-flex cursor-pointer items-center justify-center gap-2.5 border-0 bg-transparent p-0"
+								onClick={() => handleCategoryClick()}
 							>
 								<div
-									className={`font-mono uppercase leading-none ${!category ? "text-text-primary" : "text-text-secondary text-xs"}`}
+									className={`font-mono uppercase leading-none ${!category ? "text-text-primary" : "text-text-secondary"}`}
 								>
-									Tous
+									All
 								</div>
 							</button>
 						</motion.div>
@@ -135,19 +128,19 @@ const FilterContent = ({ isOpen }: { isOpen: boolean }) => {
 							>
 								<button
 									type="button"
+									className="inline-flex cursor-pointer items-center justify-center gap-2.5 border-0 bg-transparent p-0"
 									onClick={() =>
 										handleCategoryClick(
 											categoryItem.slug?.current || categoryItem._id,
 										)
 									}
-									className="inline-flex items-center justify-center gap-2.5"
 								>
 									<div
-										className={`font-mono uppercase leading-none ${
+										className={`font-mono text-xs uppercase leading-none ${
 											category ===
 											(categoryItem.slug?.current || categoryItem._id)
 												? "text-text-primary"
-												: "text-text-secondary text-xs"
+												: "text-text-secondary"
 										}`}
 									>
 										{categoryItem.title?.fr || categoryItem.title?.en || ""}
@@ -168,25 +161,26 @@ const FilterTrigger = ({
 }: { isOpen: boolean; setIsOpen: (isOpen: boolean) => void }) => {
 	const { toggle } = useStore(overlayStore, (state) => state);
 	const { category } = useSearch({ from: "/" });
+
 	const { data: categories } = useQuery({
 		queryKey: ["categories"],
 		queryFn: () => client.fetch<Category[]>(getAllCategories),
 	});
 
-	// Find the currently selected category
 	const selectedCategory = React.useMemo(() => {
 		if (!category) return "All";
 
-		const found = categories?.find(
-			(c) => (c.slug?.current || c._id) === category,
+		const foundCategory = categories?.find(
+			(c) => c.slug?.current === category || c._id === category,
 		);
 
-		return found ? found.title?.fr || found.title?.en : "All";
+		return foundCategory
+			? foundCategory.title?.fr || foundCategory.title?.en
+			: "All";
 	}, [category, categories]);
 
 	return (
-		<button
-			type="button"
+		<div
 			className="inline-flex h-16 w-[290px] cursor-pointer items-center justify-between rounded-br rounded-bl bg-background-primary/80 px-4 py-1"
 			onClick={() => {
 				toggle();
@@ -198,7 +192,6 @@ const FilterTrigger = ({
 					setIsOpen(!isOpen);
 				}
 			}}
-			aria-label="Toggle category filter menu"
 		>
 			<div className="inline-flex h-16 flex-col items-start justify-between pt-3 pb-2.5">
 				<h3 className="justify-start font-normal font-serif text-xs leading-loose tracking-tight">
@@ -210,9 +203,12 @@ const FilterTrigger = ({
 					</h4>
 				</div>
 			</div>
-			<span className="flex cursor-pointer items-center justify-start gap-4 self-stretch">
+			<button
+				type="button"
+				className="flex cursor-pointer items-center justify-start gap-4 self-stretch"
+			>
 				<Plus className="size-9" isOpen={isOpen} />
-			</span>
-		</button>
+			</button>
+		</div>
 	);
 };

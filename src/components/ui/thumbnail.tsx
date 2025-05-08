@@ -1,6 +1,7 @@
 import { urlFor } from "@/lib/sanity";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useNavigate, useRouter, useSearch } from "@tanstack/react-router";
 import clsx from "clsx";
+import { useTranslation } from "react-i18next";
 import type { Project } from "studio/sanity.types";
 import { Image } from "./image";
 
@@ -12,19 +13,40 @@ export const Thumbnail = ({
 	className?: string;
 }) => {
 	const navigate = useNavigate();
+	const router = useRouter();
+	const { i18n } = useTranslation();
 	const { category } = useSearch({ from: "/" });
 
 	const handleClick = () => {
 		const projectId = item.slug?.current || item._id;
 
-		// Créer un objet search qui ne contient que les paramètres non vides
+		// Récupérer la langue actuelle
+		const currentLang = i18n.language.startsWith("en") ? "en" : "fr";
+
+		// Récupérer les autres paramètres d'URL actuels
+		const currentSearch = { ...router.state.location.search };
+
+		// Créer un objet search avec lang en premier
 		const search: Record<string, string> = {
+			lang: currentLang,
 			project: projectId,
 		};
 
 		// N'ajouter la catégorie que si elle existe
 		if (category) {
 			search.category = category;
+		}
+
+		// Ajouter les autres paramètres existants (sauf lang et project qui sont déjà définis)
+		for (const [key, value] of Object.entries(currentSearch)) {
+			if (
+				key !== "lang" &&
+				key !== "project" &&
+				key !== "category" &&
+				value !== undefined
+			) {
+				search[key] = value;
+			}
 		}
 
 		navigate({
@@ -52,7 +74,7 @@ export const Thumbnail = ({
 			className="block size-full cursor-pointer"
 		>
 			<Image
-				className={clsx(className, "min-h-full min-w-full")}
+				className={clsx(className, "min-h-full md:min-w-full md:max-w-full")}
 				ratio="4/5"
 				src={item.thumbnail?.asset?._ref ? urlFor(item.thumbnail).url() : ""}
 				alt={item.title}

@@ -1,12 +1,15 @@
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useNavigate, useRouter, useSearch } from "@tanstack/react-router";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
 /**
  * Hook to handle category filtering via URL parameters
  */
 export const useCategoryFilter = () => {
 	const navigate = useNavigate();
-	const { category } = useSearch({ from: "/" });
+	const router = useRouter();
+	const { i18n } = useTranslation();
+	const { category, project } = useSearch({ from: "/" });
 
 	/**
 	 * Filter projects by category
@@ -14,27 +17,46 @@ export const useCategoryFilter = () => {
 	 */
 	const filterByCategory = useCallback(
 		(categorySlug: string) => {
-			if (categorySlug === "all") {
-				// Clear the category filter
-				navigate({
-					to: "/",
-					search: {
-						category: undefined as unknown as string,
-					},
-					replace: true,
-				});
-			} else {
-				// Apply category filter
-				navigate({
-					to: "/",
-					search: {
-						category: categorySlug,
-					},
-					replace: true,
-				});
+			// Récupérer la langue actuelle
+			const currentLang = i18n.language.startsWith("en") ? "en" : "fr";
+
+			// Récupérer les autres paramètres d'URL actuels
+			const currentSearch = { ...router.state.location.search };
+
+			// Créer un objet search avec lang en premier
+			const search: Record<string, string> = {
+				lang: currentLang,
+			};
+
+			// Ajouter project s'il existe
+			if (project) {
+				search.project = project;
 			}
+
+			// Ajouter category si ce n'est pas "all"
+			if (categorySlug !== "all") {
+				search.category = categorySlug;
+			}
+
+			// Ajouter les autres paramètres existants
+			for (const [key, value] of Object.entries(currentSearch)) {
+				if (
+					key !== "lang" &&
+					key !== "project" &&
+					key !== "category" &&
+					value !== undefined
+				) {
+					search[key] = value;
+				}
+			}
+
+			navigate({
+				to: "/",
+				search,
+				replace: true,
+			});
 		},
-		[navigate],
+		[navigate, router, i18n, project],
 	);
 
 	/**

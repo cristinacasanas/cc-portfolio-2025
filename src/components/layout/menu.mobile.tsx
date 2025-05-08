@@ -1,27 +1,32 @@
+import { aboutStore } from "@/stores/about.store";
 import { menuMobileStore } from "@/stores/menu-mobile.store";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "../ui/LanguageSwitcher";
 
 export const MenuMobile = () => {
 	const { isOpen } = useStore(menuMobileStore);
-	// État local pour gérer la visibilité du composant pendant l'animation
+	const { t, i18n } = useTranslation();
+
 	const [isVisible, setIsVisible] = useState(false);
 
-	// Synchroniser isVisible avec isOpen
 	useEffect(() => {
 		if (isOpen) {
 			setIsVisible(true);
 		}
 	}, [isOpen]);
 
-	// Gérer l'animation de fermeture complète
 	const handleAnimationComplete = () => {
 		if (!isOpen) {
 			setIsVisible(false);
 		}
 	};
+
+	const currentLang = i18n.language.startsWith("en") ? "en" : "fr";
+	const { toggle } = useStore(aboutStore, (state) => state);
 
 	return (
 		<AnimatePresence>
@@ -45,35 +50,39 @@ export const MenuMobile = () => {
 				>
 					<div className="flex flex-col items-start justify-start gap-10">
 						<div className="inline-flex items-center justify-center gap-2.5 px-1 py-0.5">
-							<div className="justify-start font-['PP_Editorial_New'] font-normal text-color-black-solid text-base leading-[21px]">
-								<Link to="/">Projects</Link>
+							<div className="justify-start font-['PP_Editorial_New'] font-normal text-base text-color-black-solid leading-[21px]">
+								<Link to="/" search={{ lang: currentLang }}>
+									{t("projects")}
+								</Link>
 							</div>
 						</div>
 						<div className="inline-flex items-center justify-center gap-2.5 px-1 py-0.5">
-							<div className="justify-start font-['PP_Editorial_New'] font-extralight text-color-black-solid text-base leading-[21px]">
-								<a href="/about" className="hover:underline">
-									À Propos
-								</a>
+							<div className="justify-start font-['PP_Editorial_New'] font-extralight text-base text-color-black-solid leading-[21px]">
+								<button
+									className="cursor-pointer"
+									type="button"
+									onClick={toggle}
+								>
+									{t("about")}
+								</button>
 							</div>
 						</div>
 						<div className="inline-flex items-center justify-center gap-2.5 px-1 py-0.5">
-							<div className="justify-start font-['PP_Editorial_New'] font-extralight text-color-black-solid text-base leading-[21px]">
+							<div className="justify-start font-['PP_Editorial_New'] font-extralight text-base text-color-black-solid leading-[21px]">
 								<Link to="/lab" search={{ view: "canvas" }}>
-									LAB
+									{t("lab")}
 								</Link>
 							</div>
 						</div>
 					</div>
-					<div className="inline-flex w-full items-start justify-end gap-4">
+					<div className="inline-flex w-full justify-end gap-4">
 						<div className="flex items-center justify-center gap-2.5 px-1 py-0.5">
 							<div className="justify-start font-['PP_Neue_Montreal_Mono'] text-Secondary-Body text-[10px] uppercase leading-[21px]">
-								Langue
+								{t("language")}
 							</div>
 						</div>
 						<div className="flex items-center justify-center gap-2.5 px-1 py-0.5">
-							<div className="justify-start font-['PP_Neue_Montreal_Mono'] text-[10px] text-color-black-solid uppercase leading-[21px]">
-								[FR]
-							</div>
+							<LanguageSwitcher />
 						</div>
 					</div>
 				</motion.div>
