@@ -40,6 +40,10 @@ i18n
 					lab: "LAB",
 					language: "Langue",
 					projects: "Projets",
+					aboutModal: {
+						title: "À Propos",
+						awards: "Prix",
+					},
 				},
 			},
 			en: {
@@ -49,6 +53,10 @@ i18n
 					lab: "LAB",
 					language: "Language",
 					projects: "Projects",
+					aboutModal: {
+						title: "About",
+						awards: "Awards",
+					},
 				},
 			},
 		},

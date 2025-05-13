@@ -67,16 +67,31 @@ export const Thumbnail = ({
 		}
 	};
 
+	// Generate image URL with proper aspect ratio for mobile thumbnails
+	const getImageUrl = () => {
+		if (!item.thumbnail?.asset?._ref) return "";
+
+		// Use Sanity's transformation API to enforce 4:5 aspect ratio
+		return urlFor(item.thumbnail)
+			.width(300) // Set a base width (will be responsively scaled by CSS)
+			.height(375) // 4:5 ratio (300 * 5/4 = 375)
+			.fit("crop")
+			.url();
+	};
+
 	return (
 		<button
 			type="button"
 			onClick={handleClick}
-			className="block size-full cursor-pointer"
+			className="block h-full cursor-pointer"
 		>
 			<Image
-				className={clsx(className, "min-h-full md:min-w-full md:max-w-full")}
+				className={clsx(
+					className,
+					"min-h-full w-auto md:min-w-full md:max-w-full",
+				)}
 				ratio="4/5"
-				src={item.thumbnail?.asset?._ref ? urlFor(item.thumbnail).url() : ""}
+				src={getImageUrl()}
 				alt={item.title}
 				draggable={false}
 			/>

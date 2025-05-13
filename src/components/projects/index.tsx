@@ -86,7 +86,6 @@ const CoverImage = ({
 					key={index}
 					initial={{ opacity: 0.2, filter: "blur(3px)" }}
 					animate={{ opacity: 1, filter: "blur(0px)" }}
-					exit={{ opacity: 0.2, filter: "blur(3px)" }}
 					transition={{ duration: 0.3, ease: "easeInOut" }}
 					className="w-full"
 				>

@@ -10,10 +10,7 @@ type ImageProps = React.ImgHTMLAttributes<HTMLImageElement> & {
 export const Image = ({ ratio, className, ...props }: ImageProps) => {
 	return (
 		<img
-			className={clsx(
-				`aspect-[${ratio}] h-auto w-auto object-cover`,
-				className,
-			)}
+			className={clsx(`aspect-[${ratio}] h-auto object-cover`, className)}
 			{...props}
 			alt={props.alt}
 		/>

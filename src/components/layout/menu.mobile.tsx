@@ -1,15 +1,18 @@
 import { aboutStore } from "@/stores/about.store";
 import { menuMobileStore } from "@/stores/menu-mobile.store";
+import { overlayStore } from "@/stores/overlay.store";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { LanguageSwitcher } from "../ui/LanguageSwitcher";
+import { LanguageSwitcher } from "../ui/language-switcher";
 
 export const MenuMobile = () => {
-	const { isOpen } = useStore(menuMobileStore);
+	const { isOpen, toggle: toggleMenu } = useStore(menuMobileStore);
 	const { t, i18n } = useTranslation();
+	const { toggle: toggleAbout } = useStore(aboutStore, (state) => state);
+	const { toggle: toggleOverlay } = useStore(overlayStore, (state) => state);
 
 	const [isVisible, setIsVisible] = useState(false);
 
@@ -26,7 +29,6 @@ export const MenuMobile = () => {
 	};
 
 	const currentLang = i18n.language.startsWith("en") ? "en" : "fr";
-	const { toggle } = useStore(aboutStore, (state) => state);
 
 	return (
 		<AnimatePresence>
@@ -35,11 +37,11 @@ export const MenuMobile = () => {
 					initial={{ opacity: 0, filter: "blur(8px)" }}
 					animate={{
 						opacity: isOpen ? 1 : 0,
-						filter: isOpen ? "blur(0px)" : "blur(8px)",
+						filter: isOpen ? "blur(0px)" : "blur(10px)",
 					}}
 					exit={{
 						opacity: 0,
-						filter: "blur(8px)",
+						filter: "blur(10px)",
 					}}
 					transition={{
 						duration: 0.3,
@@ -57,18 +59,22 @@ export const MenuMobile = () => {
 							</div>
 						</div>
 						<div className="inline-flex items-center justify-center gap-2.5 px-1 py-0.5">
-							<div className="justify-start font-['PP_Editorial_New'] font-extralight text-base text-color-black-solid leading-[21px]">
+							<div className="justify-start font-extralight font-serif text-base text-color-black-solid leading-[21px]">
 								<button
 									className="cursor-pointer"
 									type="button"
-									onClick={toggle}
+									onClick={() => {
+										toggleMenu();
+										toggleAbout();
+										toggleOverlay();
+									}}
 								>
 									{t("about")}
 								</button>
 							</div>
 						</div>
 						<div className="inline-flex items-center justify-center gap-2.5 px-1 py-0.5">
-							<div className="justify-start font-['PP_Editorial_New'] font-extralight text-base text-color-black-solid leading-[21px]">
+							<div className="justify-start font-extralight font-serif text-base text-color-black-solid leading-[21px]">
 								<Link to="/lab" search={{ view: "canvas" }}>
 									{t("lab")}
 								</Link>
