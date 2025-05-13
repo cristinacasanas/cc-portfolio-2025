@@ -12,22 +12,22 @@ const portableTextComponents: Partial<PortableTextComponents> = {
 	block: {
 		// Default paragraph style
 		normal: ({ children }) => (
-			<p className="font-mono text-[10px] uppercase leading-[15px] mb-2">
+			<p className="mb-2 font-mono text-[10px] uppercase leading-[15px]">
 				{children}
 			</p>
 		),
 		// Any other block styles you might have
 		h1: ({ children }) => (
-			<h1 className="font-serif text-[12px] leading-tight mb-2">{children}</h1>
+			<h1 className="mb-2 font-serif text-[12px] leading-tight">{children}</h1>
 		),
 		h2: ({ children }) => (
-			<h2 className="font-serif text-[11px] leading-tight mb-2">{children}</h2>
+			<h2 className="mb-2 font-serif text-[11px] leading-tight">{children}</h2>
 		),
 	},
 	marks: {
 		// Custom renderer for emphasized text
 		em: ({ children }) => (
-			<em className="font-mono text-[10px] text-text-secondary uppercase leading-[15px] italic">
+			<em className="font-mono text-[10px] text-text-secondary uppercase italic leading-[15px]">
 				{children}
 			</em>
 		),
@@ -68,8 +68,8 @@ export const AboutModal = () => {
 					transition={{ duration: 0.3 }}
 					className="absolute top-[var(--header-height)] left-0 z-50 inline-flex h-[calc(100dvh-var(--header-height))] w-screen flex-col items-start justify-between border-black border-r bg-background-primary/80 pt-14 pr-2 pb-6 pl-4 backdrop-blur-sm md:w-[455px]"
 				>
-					<div className="flex flex-col-reverse md:flex-row flex-1 items-start gap-6 md:gap-0 justify-between self-stretch">
-						<div className="inline-flex flex-1 md:flex-0 flex-col items-start justify-between self-stretch">
+					<div className="flex flex-1 flex-col-reverse items-start justify-between gap-6 self-stretch md:flex-row md:gap-0">
+						<div className="inline-flex flex-1 flex-col items-start justify-between self-stretch md:flex-0">
 							<div className="flex flex-col items-start justify-start gap-20">
 								<div className="flex w-80 flex-col items-start justify-start gap-2">
 									<h2 className="justify-start font-normal font-serif leading-none">
@@ -117,7 +117,7 @@ export const AboutModal = () => {
 								</Link>
 							</div>
 						</div>
-						<div className="w-full md:w-auto flex justify-end">
+						<div className="flex w-full justify-end md:w-auto">
 							<Image
 								className="h-[125px] w-[100px] p-0.5"
 								src={
