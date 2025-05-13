@@ -1,0 +1,8 @@
+---
+description: How to name my files
+globs: 
+alwaysApply: false
+---
+# Files
+
+- for all files : name-something.extension.tsx

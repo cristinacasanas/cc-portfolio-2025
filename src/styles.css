@@ -9,3 +9,34 @@ body {
 	-moz-osx-font-smoothing: grayscale;
 }
 
+@layer base {
+	:root {
+		--white: rgba(255, 255, 255, 1);
+		--white--60: rgba(255, 255, 255, 0.6);
+		--black: rgba(0, 0, 0, 1);
+		--black--60: rgba(0, 0, 0, 0.6);
+		--blue--klein: rgba(5, 41, 158, 1);
+		--green--chartreuse: rgba(127, 184, 0, 1);
+		--orange--50: rgba(255, 180, 0, 1);
+		--red--54: rgba(246, 81, 29, 1);
+		--rose--84: rgba(239, 188, 213, 1);
+
+		--font-mono: "PP Neue Montreal Mono", monospace;
+		--font-serif: "PP Editorial New", serif;
+
+		--header-height: 42px;
+	}
+}
+
+@theme {
+	--color-background-primary: var(--white);
+	--color-background-secondary: var(--white--60);
+	--color-background-tertiary: var(--black--60);
+	--color-text-primary: var(--black);
+	--color-text-secondary: var(--black--60);
+
+	--font-mono: "SF Mono", "Monaco", "Inconsolata", "Fira Mono",
+		"Droid Sans Mono", "Source Code Pro", monospace;
+	--font-serif: "SF Pro Text", "SF Pro Icons", "Helvetica Neue", "Helvetica",
+		"Arial", sans-serif;
+}

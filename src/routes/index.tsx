@@ -1,53 +1,65 @@
-import { createFileRoute } from "@tanstack/react-router";
-import logo from "../logo.svg";
-import type { Project } from "studio/sanity.types";
+import { ProjectCard } from "@/components/projects";
+import {
+	getAllProjects,
+	getProjectById,
+	getProjectsByCategory,
+} from "@/lib/queries";
 import { client } from "@/lib/sanity";
 import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, useSearch } from "@tanstack/react-router";
+import type { Category, Project } from "studio/sanity.types";
+
+type ProjectWithCategories = Project & {
+	expandedCategories?: Category[];
+};
 
 export const Route = createFileRoute("/")({
-
-
 	component: App,
+	validateSearch: (search: Record<string, unknown>) => {
+		const category = search?.category?.toString() || "";
+		const project = search?.project?.toString() || "";
+
+		const result: Record<string, string> = {};
+		if (category) result.category = category;
+		if (project) result.project = project;
+
+		return result;
+	},
 });
 
 function App() {
+	const { category, project } = useSearch({ from: "/" });
 
 	const { data } = useQuery({
-		queryKey: ["projects"],
-		queryFn: () => client.fetch<Project[]>("*[_type == 'project']"),
+		queryKey: ["projects", { category, project }],
+		queryFn: async () => {
+			if (project) {
+				const projectData = await client.fetch<ProjectWithCategories[]>(
+					getProjectById(project),
+				);
+				return projectData;
+			}
+
+			if (category) {
+				const results = await client.fetch<ProjectWithCategories[]>(
+					getProjectsByCategory(category),
+				);
+				return results;
+			}
+
+			const results =
+				await client.fetch<ProjectWithCategories[]>(getAllProjects);
+			return results;
+		},
 	});
 
-	console.log(data);
-
 	return (
-		<div className="text-center">
-			{import.meta.env.VITE_SANITY_PROJECT_ID}
-			<header className="min-h-screen flex flex-col items-center justify-center bg-[#282c34] text-white text-[calc(10px+2vmin)]">
-				<img
-					src={logo}
-					className="h-[40vmin] pointer-events-none animate-[spin_20s_linear_infinite]"
-					alt="logo"
-				/>
-				<p>
-					Edit <code>src/routes/index.tsx</code> and save to reload.
-				</p>
-				<a
-					className="text-[#61dafb] hover:underline"
-					href="https://reactjs.org"
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					Learn React
-				</a>
-				<a
-					className="text-[#61dafb] hover:underline"
-					href="https://tanstack.com"
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					Learn TanStack
-				</a>
-			</header>
+		<div className="col-span-4 flex flex-col gap-10 overflow-y-auto bg-background-primary md:gap-20">
+			{data &&
+				data.length > 0 &&
+				data.map((project) => (
+					<ProjectCard key={project._id} project={project} />
+				))}
 		</div>
 	);
 }

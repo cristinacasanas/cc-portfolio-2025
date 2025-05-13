@@ -9,7 +9,7 @@ export default defineType({
       name: "name",
       title: "Name",
       type: "string",
-      validation: (Rule) => Rule.required(),
+      validation: (Rule: any) => Rule.required(),
       initialValue: "Default Theme",
     }),
     defineField({
@@ -102,7 +102,7 @@ export default defineType({
               name: "name",
               title: "Font Name",
               type: "string",
-              validation: (Rule) => Rule.required(),
+              validation: (Rule: any) => Rule.required(),
             }),
             defineField({
               name: "fontFile",
@@ -111,7 +111,7 @@ export default defineType({
               options: {
                 accept: ".ttf,.otf,.woff,.woff2",
               },
-              validation: (Rule) => Rule.required(),
+              validation: (Rule: any) => Rule.required(),
             }),
             defineField({
               name: "fontWeight",
@@ -156,7 +156,7 @@ export default defineType({
               name: "name",
               title: "Font Name",
               type: "string",
-              validation: (Rule) => Rule.required(),
+              validation: (Rule: any) => Rule.required(),
             }),
             defineField({
               name: "fontFile",
@@ -165,7 +165,7 @@ export default defineType({
               options: {
                 accept: ".ttf,.otf,.woff,.woff2",
               },
-              validation: (Rule) => Rule.required(),
+              validation: (Rule: any) => Rule.required(),
             }),
             defineField({
               name: "fontWeight",
@@ -210,7 +210,7 @@ export default defineType({
               name: "name",
               title: "Font Name",
               type: "string",
-              validation: (Rule) => Rule.required(),
+              validation: (Rule: any) => Rule.required(),
             }),
             defineField({
               name: "fontFile",
@@ -219,7 +219,7 @@ export default defineType({
               options: {
                 accept: ".ttf,.otf,.woff,.woff2",
               },
-              validation: (Rule) => Rule.required(),
+              validation: (Rule: any) => Rule.required(),
             }),
             defineField({
               name: "fontWeight",
@@ -259,7 +259,7 @@ export default defineType({
           title: "Base Font Size (px)",
           type: "number",
           initialValue: 16,
-          validation: (Rule) => Rule.required().min(12).max(24),
+          validation: (Rule: any) => Rule.required().min(12).max(24),
         }),
         defineField({
           name: "scaleRatio",
@@ -291,7 +291,7 @@ export default defineType({
           title: "Base Spacing Unit (px)",
           type: "number",
           initialValue: 4,
-          validation: (Rule) => Rule.required().min(2).max(8),
+          validation: (Rule: any) => Rule.required().min(2).max(8),
         }),
         defineField({
           name: "scale",

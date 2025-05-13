@@ -9,9 +9,15 @@ import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 export default defineConfig({
 	server: {
 		port: 5173,
+		hmr: {
+			overlay: true,
+		},
 	},
 	plugins: [
-		TanStackRouterVite({ autoCodeSplitting: true }),
+		TanStackRouterVite({
+			autoCodeSplitting: true,
+			routeMatcher: "src/routes/**/*.tsx",
+		}),
 		viteReact(),
 		tailwindcss(),
 	],
@@ -22,6 +28,17 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			"@": resolve(__dirname, "./src"),
+		},
+	},
+	build: {
+		rollupOptions: {
+			output: {
+				manualChunks: (id) => {
+					if (id.includes("node_modules")) {
+						return "vendor";
+					}
+				},
+			},
 		},
 	},
 });

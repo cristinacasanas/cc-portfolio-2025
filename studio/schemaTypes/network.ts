@@ -1,0 +1,33 @@
+import { defineField, defineType } from "sanity";
+
+export default defineType({
+  name: "network",
+  title: "Network",
+  type: "document",
+  fields: [
+    defineField({
+      name: "links",
+      title: "Links",
+      type: "array",
+      of: [
+        defineField({
+          name: "link",
+          title: "Link",
+          type: "object",
+          fields: [
+            defineField({
+              name: "title",
+              title: "Title",
+              type: "string",
+            }),
+            defineField({
+              name: "url",
+              title: "URL",
+              type: "url",
+            }),
+          ],
+        }),
+      ],
+    }),
+  ],
+});
