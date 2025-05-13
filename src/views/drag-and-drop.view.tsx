@@ -150,7 +150,7 @@ export function DragAndDropView() {
 							<img
 								src={item.image}
 								alt={`Poster ${index}`}
-								className="w-full h-auto select-none"
+								className="h-auto w-full select-none"
 								draggable={false}
 								loading="lazy"
 								onError={(e) => {
@@ -165,7 +165,7 @@ export function DragAndDropView() {
 				})}
 			</div>
 
-			<div className="fixed bottom-8 left-0 right-0 flex justify-center z-50 pointer-events-none">
+			<div className="pointer-events-none fixed right-0 bottom-8 left-0 z-50 flex justify-center">
 				<div className="pointer-events-auto">
 					<LabNav />
 				</div>

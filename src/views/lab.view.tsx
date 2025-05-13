@@ -373,7 +373,7 @@ function InfiniteImageGrid() {
 					<img
 						src={imageUrl}
 						alt="okay"
-						className="w-full h-full object-contain"
+						className="h-full w-full object-contain"
 						loading="lazy"
 						onError={(e) => {
 							// Fallback en cas d'erreur de chargement
@@ -407,7 +407,7 @@ function InfiniteImageGrid() {
 	}, []);
 
 	return (
-		<div className="fixed inset-0 pt-12 overflow-hidden bg-gray-50">
+		<div className="fixed inset-0 overflow-hidden bg-gray-50 pt-12">
 			<div
 				className="absolute inset-0 overflow-hidden"
 				ref={gridRef}
@@ -418,13 +418,13 @@ function InfiniteImageGrid() {
 				onWheel={handleWheel}
 			>
 				{isLoading && (
-					<div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+					<div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
 						Chargement...
 					</div>
 				)}
 				<div className="absolute inset-0">{renderedCells}</div>
 			</div>
-			<div className="fixed bottom-8 left-0 right-0 flex justify-center z-10 pointer-events-none">
+			<div className="pointer-events-none fixed right-0 bottom-8 left-0 z-10 flex justify-center">
 				<div className="pointer-events-auto">
 					<LabNav />
 				</div>

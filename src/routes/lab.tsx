@@ -20,7 +20,7 @@ function RouteComponent() {
 	const { view } = useSearch({ from: "/lab" });
 
 	return (
-		<div className="w-full h-full flex flex-col">
+		<div className="flex h-full w-full flex-col">
 			<div className="flex-1">
 				<Suspense fallback={<div className="p-4">Loading lab view...</div>}>
 					<LabView initialView={view} />

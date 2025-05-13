@@ -10,11 +10,11 @@ export const SecondaryLayout = ({
 	return (
 		<div
 			className={clsx(
-				"mt-[var(--header-height)] w-full max-h-[calc(100vh-var(--header-height))] overflow-y-auto",
+				"mt-[var(--header-height)] max-h-[calc(100vh-var(--header-height))] w-full overflow-y-auto",
 				className,
 			)}
 		>
-			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+			<div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
 				{children}
 			</div>
 		</div>

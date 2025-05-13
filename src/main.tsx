@@ -12,7 +12,7 @@ import "./i18n";
 import { routeTree } from "./routeTree.gen";
 
 import "./styles.css";
-import { LanguageParamProvider } from "./components/layout/LanguageParamProvider";
+import { LanguageParamProvider } from "@/providers/language-provider";
 import reportWebVitals from "./reportWebVitals.ts";
 
 // Force language parameter in URL if not present
