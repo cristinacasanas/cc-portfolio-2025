@@ -12,7 +12,15 @@ import type { Project } from "studio/sanity.types";
 import { Sidebar } from "../sidebar";
 
 interface ProjectInViewEvent extends CustomEvent {
-	detail: { projectId: string };
+	detail: {
+		projectId: string;
+		isInTopHalf?: boolean;
+		intersectionRatio?: number;
+		centrality?: number;
+		visibleRatio?: number;
+		enteringFromTop?: boolean;
+		isActive?: boolean;
+	};
 }
 
 export const ThumbnailsSidebar = () => {
@@ -100,7 +108,7 @@ export const ThumbnailsSidebar = () => {
 	return (
 		<Sidebar
 			ref={sidebarRef}
-			className="max-h-screen w-full flex-row gap-1.5 md:flex-col md:gap-2.5 md:overflow-y-auto"
+			className="w-full flex-row gap-1.5 md:flex-col md:gap-2.5"
 			position="right"
 		>
 			{data?.map((item) => {

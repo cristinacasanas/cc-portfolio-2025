@@ -54,7 +54,7 @@ function App() {
 	});
 
 	return (
-		<div className="col-span-4 flex flex-col gap-10 overflow-y-auto bg-background-primary md:gap-20">
+		<div className="col-span-4 flex h-[calc(100vh-var(--header-height))] flex-col gap-10 overflow-y-auto bg-background-primary pb-8 md:gap-20">
 			{data &&
 				data.length > 0 &&
 				data.map((project) => (

@@ -27,7 +27,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 		const isHomePage = matches.some((match) => match.routeId === "/");
 
 		return (
-			<div className="flex h-screen flex-col">
+			<div className="min-h-dvh">
 				<Header />
 				<MenuMobile />
 				<FilterMenu />

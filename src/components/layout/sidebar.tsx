@@ -14,7 +14,7 @@ export const Sidebar = forwardRef<
 		<aside
 			ref={ref}
 			className={clsx(
-				"z-10 col-span-1 hidden max-h-[calc(100vh-var(--header-height))] flex-col items-start justify-between border-black px-4 pb-6 md:inline-flex",
+				"z-10 col-span-1 hidden max-h-[calc(100vh-var(--header-height))] flex-col items-start justify-between overflow-y-hidden border-black px-4 pb-6 md:inline-flex",
 				position === "left" && "border-r",
 				position === "right" && "border-l",
 				position === "left" && "pl-4",
