@@ -32,7 +32,7 @@ export const LanguageSwitcher = () => {
 		<button
 			type="button"
 			onClick={() => changeLanguage(currentLang === "fr" ? "en" : "fr")}
-			className="cursor-pointer justify-start font-mono text-xs md:justify-start md:text-sm"
+			className="cursor-pointer justify-start font-mono text-[10px] md:justify-start"
 		>
 			{currentLang === "fr" ? "[FR]" : "[EN]"}
 		</button>

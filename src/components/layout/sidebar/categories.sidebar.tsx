@@ -26,7 +26,7 @@ export const CategoriesSidebar = () => {
 							<Link
 								to="/"
 								className={clsx(
-									"justify-start uppercase leading-none",
+									"justify-start uppercase leading-none text-sm",
 									!category ? "text-text-primary" : "text-text-secondary",
 								)}
 							>
@@ -41,7 +41,7 @@ export const CategoriesSidebar = () => {
 										category: categoryItem.slug?.current || categoryItem._id,
 									}}
 									className={clsx(
-										"justify-start uppercase leading-none",
+										"justify-start uppercase leading-none text-sm",
 										category ===
 											(categoryItem.slug?.current || categoryItem._id)
 											? "text-text-primary"
@@ -55,28 +55,28 @@ export const CategoriesSidebar = () => {
 					</div>
 				</div>
 				<div className="flex flex-col items-start justify-start gap-4 font-serif">
-					<a
-						href="https://instagram.com"
+					<Link
+						to="https://instagram.com"
 						target="_blank"
 						rel="noopener noreferrer"
-						className="justify-start font-normal text-color-black-solid text-xs leading-none"
+						className="justify-start font-normal text-color-black-solid leading-none"
 					>
 						↗ Instagram
-					</a>
-					<a
-						href="https://cosmos.com"
+					</Link>
+					<Link
+						to="https://cosmos.com"
 						target="_blank"
 						rel="noopener noreferrer"
-						className="justify-start font-normal text-color-black-solid text-xs leading-none"
+						className="justify-start font-normal text-color-black-solid leading-none"
 					>
 						↗ Cosmos
-					</a>
-					<a
-						href="mailto:contact@example.com"
-						className="justify-start font-normal text-color-black-solid text-xs leading-none"
+					</Link>
+					<Link
+						to="mailto:contact@example.com"
+						className="justify-start font-normal text-color-black-solid leading-none"
 					>
 						↗ Mail
-					</a>
+					</Link>
 				</div>
 			</div>
 		</Sidebar>

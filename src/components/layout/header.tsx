@@ -31,7 +31,7 @@ export const Header = () => {
 					<Link
 						to="/"
 						search={{ lang: currentLang }}
-						className="justify-start font-serif text-[14px]"
+						className="justify-start font-serif text-sm"
 					>
 						CRISTINA CASAÑAS
 					</Link>
@@ -45,7 +45,7 @@ export const Header = () => {
 								toggleOverlay();
 								toggle();
 							}}
-							className="cursor-pointer justify-start font-serif text-sm"
+							className="cursor-pointer justify-start font-serif"
 						>
 							{t("about")}
 						</button>
@@ -56,7 +56,7 @@ export const Header = () => {
 								toggleOverlay();
 								toggle();
 							}}
-							className="cursor-pointer justify-start font-serif text-sm"
+							className="cursor-pointer justify-start font-serif"
 						>
 							{t("close")}
 						</button>
@@ -66,14 +66,14 @@ export const Header = () => {
 					<Link
 						to="/lab"
 						search={{ view: "canvas" }}
-						className="justify-start font-serif text-sm"
+						className="justify-start font-serif"
 					>
 						{t("lab")}
 					</Link>
 				</div>
 				<div className="hidden w-[120px] items-center justify-between md:flex">
 					<div className="flex items-center justify-center gap-2.5 px-1 py-0.5">
-						<div className="justify-start font-mono text-sm uppercase">
+						<div className="justify-start font-mono text-[10px] uppercase">
 							{t("language")}
 						</div>
 					</div>
