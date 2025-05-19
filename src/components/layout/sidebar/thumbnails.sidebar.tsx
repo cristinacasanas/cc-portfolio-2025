@@ -14,12 +14,8 @@ import { Sidebar } from "../sidebar";
 interface ProjectInViewEvent extends CustomEvent {
 	detail: {
 		projectId: string;
-		isInTopHalf?: boolean;
-		intersectionRatio?: number;
-		centrality?: number;
-		visibleRatio?: number;
-		enteringFromTop?: boolean;
-		isActive?: boolean;
+		isActive: boolean;
+		intersectionRatio: number;
 	};
 }
 
@@ -28,6 +24,7 @@ export const ThumbnailsSidebar = () => {
 	const [visibleProject, setVisibleProject] = useState<string | null>(null);
 	const sidebarRef = useRef<HTMLDivElement>(null);
 	const thumbnailRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+	const lastScrollTime = useRef<number>(0);
 
 	const { data } = useQuery({
 		queryKey: ["thumbnails", { category }],
@@ -46,7 +43,9 @@ export const ThumbnailsSidebar = () => {
 		}
 
 		const handleVisibleProject = (e: ProjectInViewEvent) => {
-			setVisibleProject(e.detail.projectId);
+			if (e.detail.intersectionRatio > 0 || e.detail.isActive) {
+				setVisibleProject(e.detail.projectId);
+			}
 		};
 
 		window.addEventListener(
@@ -65,38 +64,55 @@ export const ThumbnailsSidebar = () => {
 	useEffect(() => {
 		if (!visibleProject || !sidebarRef.current) return;
 
+		const now = Date.now();
+		if (now - lastScrollTime.current < 150) return;
+
 		const activeThumb = thumbnailRefs.current.get(visibleProject);
 		if (activeThumb) {
 			if (window.innerWidth >= 768) {
 				const sidebarRect = sidebarRef.current.getBoundingClientRect();
 				const thumbRect = activeThumb.getBoundingClientRect();
 
-				const scrollTop =
-					thumbRect.top +
-					sidebarRef.current.scrollTop -
-					sidebarRect.top -
-					sidebarRect.height / 2 +
-					thumbRect.height / 2;
+				const isThumbVisible =
+					thumbRect.top >= sidebarRect.top - 10 &&
+					thumbRect.bottom <= sidebarRect.bottom + 10;
 
-				sidebarRef.current.scrollTo({
-					top: scrollTop,
-					behavior: "smooth",
-				});
+				if (!isThumbVisible) {
+					const scrollTop =
+						thumbRect.top +
+						sidebarRef.current.scrollTop -
+						sidebarRect.top -
+						sidebarRect.height / 2 +
+						thumbRect.height / 2;
+
+					sidebarRef.current.scrollTo({
+						top: scrollTop,
+						behavior: "smooth",
+					});
+					lastScrollTime.current = now;
+				}
 			} else {
 				const sidebarRect = sidebarRef.current.getBoundingClientRect();
 				const thumbRect = activeThumb.getBoundingClientRect();
 
-				const scrollLeft =
-					thumbRect.left +
-					sidebarRef.current.scrollLeft -
-					sidebarRect.left -
-					sidebarRect.width / 2 +
-					thumbRect.width / 2;
+				const isThumbVisible =
+					thumbRect.left >= sidebarRect.left - 10 &&
+					thumbRect.right <= sidebarRect.right + 10;
 
-				sidebarRef.current.scrollTo({
-					left: scrollLeft,
-					behavior: "smooth",
-				});
+				if (!isThumbVisible) {
+					const scrollLeft =
+						thumbRect.left +
+						sidebarRef.current.scrollLeft -
+						sidebarRect.left -
+						sidebarRect.width / 2 +
+						thumbRect.width / 2;
+
+					sidebarRef.current.scrollTo({
+						left: scrollLeft,
+						behavior: "smooth",
+					});
+					lastScrollTime.current = now;
+				}
 			}
 		}
 	}, [visibleProject]);
@@ -108,7 +124,7 @@ export const ThumbnailsSidebar = () => {
 	return (
 		<Sidebar
 			ref={sidebarRef}
-			className="w-full flex-row gap-1.5 md:flex-col md:gap-2.5"
+			className="max-h-screen w-full flex-row gap-1.5 md:flex-col md:gap-2.5 md:overflow-y-auto"
 			position="right"
 		>
 			{data?.map((item) => {
