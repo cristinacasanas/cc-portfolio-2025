@@ -106,13 +106,13 @@ export const AboutModal = () => {
 								</div>
 							</div>
 							<div className="flex h-20 flex-col justify-between">
-								<Link className="font-serif text-[10px] leading-none" to="/">
+								<Link className="font-serif leading-none" to="/">
 									↗ Instagram
 								</Link>
-								<Link className="font-serif text-[10px] leading-none" to="/">
+								<Link className="font-serif leading-none" to="/">
 									↗ Cosmos
 								</Link>
-								<Link className="font-serif text-[10px] leading-none" to="/">
+								<Link className="font-serif leading-none" to="/">
 									↗ Mail
 								</Link>
 							</div>

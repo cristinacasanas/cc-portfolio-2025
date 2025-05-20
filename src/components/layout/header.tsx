@@ -1,4 +1,5 @@
 import { aboutStore } from "@/stores/about.store";
+import { filterMenuStore } from "@/stores/filter-menu.store";
 import { menuMobileStore } from "@/stores/menu-mobile.store";
 import { overlayStore } from "@/stores/overlay.store";
 import { Link } from "@tanstack/react-router";
@@ -12,11 +13,19 @@ import { LanguageSwitcher } from "../ui/language-switcher";
 export const Header = () => {
 	const { t, i18n } = useTranslation();
 	const { isOpen, toggle } = useStore(aboutStore, (state) => state);
-	const { isOpen: isOpenMenu, toggle: toggleMenu } = useStore(
-		menuMobileStore,
+	const {
+		isOpen: isOpenMenu,
+		toggle: toggleMenu,
+		close: closeMenu,
+	} = useStore(menuMobileStore, (state) => state);
+	const { isOpen: isOpenFilter, close: closeFilter } = useStore(
+		filterMenuStore,
 		(state) => state,
 	);
-	const { toggle: toggleOverlay } = useStore(overlayStore, (state) => state);
+	const { toggle: toggleOverlay, close: closeOverlay } = useStore(
+		overlayStore,
+		(state) => state,
+	);
 	const currentLang = i18n.language.startsWith("en") ? "en" : "fr";
 
 	return (
@@ -90,9 +99,18 @@ export const Header = () => {
 								toggleOverlay();
 								toggle();
 							} else if (!isOpenMenu) {
+								if (isOpenFilter) {
+									closeFilter();
+									closeOverlay();
+								}
 								toggleMenu();
 							} else {
-								toggleMenu();
+								closeMenu();
+
+								// If filter menu is not open, close the overlay
+								if (!isOpenFilter) {
+									closeOverlay();
+								}
 							}
 						}}
 					>
@@ -101,11 +119,17 @@ export const Header = () => {
 								stroke="black"
 								onClick={(e) => {
 									e.stopPropagation();
-									toggleMenu();
+									if (isOpenMenu) {
+										closeMenu();
+
+										// If filter menu is not open, close the overlay
+										if (!isOpenFilter) {
+											closeOverlay();
+										}
+									}
 									if (isOpen) {
 										toggleOverlay();
 										toggle();
-										toggleMenu();
 									}
 								}}
 							/>
