@@ -26,7 +26,7 @@ function LabRouteComponent() {
 	return (
 		// This div will now be a child of the main <Container> from __root.tsx
 		// Adjust styling as needed if it's meant to fill the container or have specific layout within it.
-		<div className="h-full w-full p-4">
+		<div className="h-full w-full pt-[var(--header-height)]">
 			<Suspense>
 				<LabView initialView={view} />
 			</Suspense>
@@ -38,9 +38,7 @@ function LabRouteComponent() {
 export const LabFooter = () => {
 	return (
 		<div className="pointer-events-none fixed right-6 bottom-6 left-6 z-50 flex items-end justify-between">
-			<h1 className="font-extralight font-mono text-[262px] uppercase leading-[195.52px]">
-				Lab
-			</h1>
+			<h1 className="font-extralight font-mono text-8xl uppercase">Lab</h1>
 			<div className="pointer-events-auto">
 				<LabNav />
 			</div>

@@ -2,7 +2,7 @@ import clsx from "clsx";
 
 type AspectRatio = "16/9" | "4/3" | "1/1" | "3/4" | "9/16" | "4/5";
 
-type ImageProps = React.ImgHTMLAttributes<HTMLImageElement> & {
+export type ImageProps = React.ImgHTMLAttributes<HTMLImageElement> & {
 	ratio?: AspectRatio;
 	className?: string;
 };
