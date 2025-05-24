@@ -1,4 +1,3 @@
-import { LabNav } from "@/components/layout/lab.nav";
 import { collection } from "@/mock/collection";
 import clsx from "clsx";
 import { motion } from "framer-motion";
@@ -163,12 +162,6 @@ export function DragAndDropView() {
 						</motion.div>
 					);
 				})}
-			</div>
-
-			<div className="pointer-events-none fixed right-0 bottom-8 left-0 z-50 flex justify-center">
-				<div className="pointer-events-auto">
-					<LabNav />
-				</div>
 			</div>
 		</div>
 	);

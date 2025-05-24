@@ -54,7 +54,7 @@ function App() {
 	});
 
 	return (
-		<div className="col-span-4 flex flex-col gap-10 overflow-y-auto bg-background-primary pb-8 md:gap-20 h-[calc(100dvh-var(--header-height)-var(--mobile-thumbnails-bar-height)-var(--filter-menu-bar-height))] md:h-[calc(100dvh-var(--header-height))]">
+		<div className="col-span-4 flex h-[calc(100dvh-var(--header-height)-var(--mobile-thumbnails-bar-height)-var(--filter-menu-bar-height))] flex-col gap-10 overflow-y-auto bg-background-primary pb-8 md:h-[calc(100dvh-var(--header-height))] md:gap-20">
 			{data &&
 				data.length > 0 &&
 				data.map((project) => (

@@ -1,8 +1,6 @@
 "use client";
 
 import type React from "react";
-
-import { LabNav } from "@/components/layout/lab.nav";
 // import clsx from "clsx"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { collection } from "../mock/collection";
@@ -430,11 +428,6 @@ function InfiniteImageGrid() {
 					</div>
 				)}
 				<div className="absolute inset-0">{renderedCells}</div>
-			</div>
-			<div className="pointer-events-none fixed right-0 bottom-8 left-0 z-10 flex justify-center">
-				<div className="pointer-events-auto">
-					<LabNav />
-				</div>
 			</div>
 		</div>
 	);
