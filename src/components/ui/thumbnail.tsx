@@ -1,7 +1,6 @@
 import { urlFor } from "@/lib/sanity";
-import { useNavigate, useRouter, useSearch } from "@tanstack/react-router";
+import { scrollToProject } from "@/lib/scroll.service";
 import clsx from "clsx";
-import { useTranslation } from "react-i18next";
 import type { Project } from "studio/sanity.types";
 import { Image } from "./image";
 
@@ -12,59 +11,9 @@ export const Thumbnail = ({
 	item: Project;
 	className?: string;
 }) => {
-	const navigate = useNavigate();
-	const router = useRouter();
-	const { i18n } = useTranslation();
-	const { category } = useSearch({ from: "/" });
-
 	const handleClick = () => {
 		const projectId = item.slug?.current || item._id;
-
-		// Récupérer la langue actuelle
-		const currentLang = i18n.language.startsWith("en") ? "en" : "fr";
-
-		// Récupérer les autres paramètres d'URL actuels
-		const currentSearch = { ...router.state.location.search };
-
-		// Créer un objet search avec lang en premier
-		const search: Record<string, string> = {
-			lang: currentLang,
-			project: projectId,
-		};
-
-		// N'ajouter la catégorie que si elle existe
-		if (category) {
-			search.category = category;
-		}
-
-		// Ajouter les autres paramètres existants (sauf lang et project qui sont déjà définis)
-		for (const [key, value] of Object.entries(currentSearch)) {
-			if (
-				key !== "lang" &&
-				key !== "project" &&
-				key !== "category" &&
-				value !== undefined
-			) {
-				search[key] = value;
-			}
-		}
-
-		navigate({
-			to: "/",
-			search,
-			replace: true,
-		});
-
-		const projectElements = document.querySelectorAll("[data-project-id]");
-		for (const element of projectElements) {
-			if (element.getAttribute("data-project-id") === projectId) {
-				element.scrollIntoView({
-					behavior: "smooth",
-					block: "start",
-				});
-				break;
-			}
-		}
+		scrollToProject(projectId);
 	};
 
 	// Generate image URL with proper aspect ratio for mobile thumbnails
@@ -78,7 +27,6 @@ export const Thumbnail = ({
 			.fit("crop")
 			.url();
 	};
-
 	return (
 		<button
 			type="button"

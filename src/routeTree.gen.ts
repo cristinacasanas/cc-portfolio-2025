@@ -22,7 +22,7 @@ const ProjectsRoute = ProjectsImport.update({
   path: '/projects',
   getParentRoute: () => rootRoute,
 } as any)
-
+ 
 const LabRoute = LabImport.update({
   id: '/lab',
   path: '/lab',

@@ -12,7 +12,6 @@ import { AboutModal } from "@/components/about.modal";
 import { FilterMenu } from "@/components/filter.menu";
 import { Container } from "@/components/layout/container";
 import { MenuMobile } from "@/components/layout/menu.mobile";
-import { SecondaryLayout } from "@/components/layout/secondary-layout";
 import { CategoriesSidebar } from "@/components/layout/sidebar/categories.sidebar";
 import { ThumbnailsSidebar } from "@/components/layout/sidebar/thumbnails.sidebar";
 import { MobileThumbnails } from "@/components/mobile.thumbnails";
@@ -24,27 +23,21 @@ interface MyRouterContext {
 export const Route = createRootRouteWithContext<MyRouterContext>()({
 	component: () => {
 		const matches = useMatches();
-		const isHomePage = matches.some((match) => match.routeId === "/");
+		const isIndexRouteActive = matches.some((match) => match.routeId === "/");
 
 		return (
-			<div className="min-h-dvh">
+			<div className="flex h-screen flex-col">
 				<Header />
 				<MenuMobile />
-				<FilterMenu />
+				{isIndexRouteActive && <FilterMenu />}
 				<AboutModal />
 
-				{isHomePage ? (
-					<Container>
-						<MobileThumbnails />
-						<CategoriesSidebar />
-						<Outlet />
-						<ThumbnailsSidebar />
-					</Container>
-				) : (
-					<SecondaryLayout>
-						<Outlet />
-					</SecondaryLayout>
-				)}
+				<Container>
+					{isIndexRouteActive && <MobileThumbnails />}
+					{isIndexRouteActive && <CategoriesSidebar />}
+					<Outlet />
+					{isIndexRouteActive && <ThumbnailsSidebar />}
+				</Container>
 
 				<TanStackRouterDevtools />
 				<TanstackQueryLayout />

@@ -7,6 +7,7 @@ import { LabNav } from "@/components/layout/lab.nav";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { collection } from "../mock/collection";
 import { DragAndDropView } from "./drag-and-drop.view";
+import { ListView } from "./list.view";
 
 interface LabViewProps {
 	initialView?: string;
@@ -17,7 +18,13 @@ export default function LabView({ initialView = "canvas" }: LabViewProps) {
 	const view = initialView;
 
 	// Return different view based on the initialView parameter
-	return view === "grid" ? <InfiniteImageGrid /> : <DragAndDropView />;
+	return view === "grid" ? (
+		<InfiniteImageGrid />
+	) : view === "list" ? (
+		<ListView />
+	) : (
+		<DragAndDropView />
+	);
 }
 
 function InfiniteImageGrid() {

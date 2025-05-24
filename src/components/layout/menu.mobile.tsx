@@ -108,7 +108,7 @@ export const MenuMobile = () => {
 
 						<MenuItem
 							to="/lab"
-							search={{ view: "canvas" }}
+							search={{ view: "canvas", lang: currentLang }}
 							className="font-extralight font-serif text-base leading-[21px]"
 						>
 							{t("lab")}

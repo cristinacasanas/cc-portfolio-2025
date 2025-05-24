@@ -15,6 +15,7 @@
     "dev:studio": "cd studio && npm run dev",
     "dev:all": "npm run dev & npm run dev:studio",
     "generate:types": "cd studio && sanity schema extract && sanity typegen generate",
+    "generate-routes": "npx tsr generate",
     "seed:projects": "node seed.js"
   },
   "dependencies": {
@@ -53,6 +54,7 @@
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@sanity/vision": "^3.86.1",
+    "@tanstack/router-cli": "^1.120.10",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.2.0",
     "@types/react": "^19.0.8",

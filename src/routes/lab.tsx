@@ -10,7 +10,10 @@ export const Route = createFileRoute("/lab")({
 		// Extract and validate the view parameter
 		const view = search?.view?.toString() || "canvas";
 		return {
-			view: view === "grid" || view === "canvas" ? view : "canvas",
+			view:
+				view === "grid" || view === "canvas" || view === "list"
+					? view
+					: "canvas",
 		};
 	},
 });

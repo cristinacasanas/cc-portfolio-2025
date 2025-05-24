@@ -285,7 +285,13 @@ export const MobileThumbnails = () => {
 	return (
 		<div
 			ref={containerRef}
-			className="sticky mt-2 inline-flex h-full min-h-[50px] w-screen items-start gap-1.5 self-stretch overflow-x-auto pr-3 md:hidden"
+			className="sticky mt-2 inline-flex w-screen items-start gap-1.5 self-stretch overflow-x-auto pr-3 md:hidden"
+			style={
+				{
+					"--header-height": "42px",
+					"--mobile-thumbnails-bar-height": "50px",
+				} as React.CSSProperties
+			}
 		>
 			{sortedProjects.map((item) => {
 				const projectId = item.slug?.current || item._id;

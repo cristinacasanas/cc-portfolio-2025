@@ -6,6 +6,12 @@ import type { Project } from "studio/sanity.types";
 
 export const Route = createFileRoute("/projects")({
 	component: ProjectsPage,
+	validateSearch: (search: Record<string, unknown>) => {
+		const lang = search?.lang?.toString() || "fr";
+		return {
+			lang: lang === "en" || lang === "fr" ? lang : "fr",
+		};
+	},
 });
 
 function ProjectsPage() {

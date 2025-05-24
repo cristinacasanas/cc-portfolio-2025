@@ -4,6 +4,7 @@ import { urlFor } from "@/lib/sanity";
 import clsx from "clsx";
 import { AnimatePresence, motion } from "framer-motion";
 import React, { useEffect, useRef } from "react";
+import { registerProject, clear as clearScrollService } from "@/lib/scroll.service";
 import type { Category, Project } from "studio/sanity.types";
 
 type ProjectWithCategories = Project & {
@@ -11,13 +12,15 @@ type ProjectWithCategories = Project & {
 };
 
 // Référence globale pour suivre tous les projets et leurs positions
-const projectsRegistry = {
+export const projectsRegistry = {
 	projects: new Map<string, { element: HTMLDivElement; position: number }>(),
 	lastProjectId: null as string | null,
 
 	// Méthode pour enregistrer un projet
 	registerProject(id: string, element: HTMLDivElement, position: number) {
 		this.projects.set(id, { element, position });
+		// Enregistrer également dans le ScrollService
+		registerProject(id, element);
 		// Mettre à jour le dernier projet (celui avec la position la plus élevée)
 		if (
 			this.lastProjectId === null ||
@@ -36,6 +39,7 @@ const projectsRegistry = {
 	clear() {
 		this.projects.clear();
 		this.lastProjectId = null;
+		clearScrollService();
 	},
 };
 

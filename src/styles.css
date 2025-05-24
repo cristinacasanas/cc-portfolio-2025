@@ -25,6 +25,8 @@ body {
 		--font-serif: "PP Editorial New", serif;
 
 		--header-height: 42px;
+		--mobile-thumbnails-bar-height: 50px;
+		--filter-menu-bar-height: 85px;
 	}
 }
 
