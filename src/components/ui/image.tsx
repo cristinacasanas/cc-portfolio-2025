@@ -25,7 +25,7 @@ export const Image = ({ ratio, className, src, alt, ...props }: ImageProps) => {
 		return (
 			<div
 				className={clsx(
-					`aspect-[${ratio}] h-auto bg-gray-200 flex items-center justify-center`,
+					`aspect-[${ratio}] flex h-auto items-center justify-center bg-gray-200`,
 					className,
 				)}
 				role="img"
@@ -41,7 +41,7 @@ export const Image = ({ ratio, className, src, alt, ...props }: ImageProps) => {
 			{isLoading && (
 				<div
 					className={clsx(
-						`aspect-[${ratio}] h-auto bg-gray-100 animate-pulse`,
+						`aspect-[${ratio}] h-auto animate-pulse bg-gray-100`,
 						className,
 					)}
 					role="img"
