@@ -8,10 +8,10 @@ import {
 import clsx from "clsx";
 import { AnimatePresence, motion } from "framer-motion";
 import React, { useEffect, useRef } from "react";
-import type { Category, Project } from "studio/sanity.types";
+import type { Categories, Projects } from "studio/sanity.types";
 
-type ProjectWithCategories = Project & {
-	expandedCategories?: Category[];
+type ProjectWithCategories = Projects & {
+	expandedCategories?: Categories[];
 };
 
 // Référence globale pour suivre tous les projets et leurs positions
@@ -60,15 +60,6 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 		const position = ref.current.getBoundingClientRect().top + window.scrollY;
 		projectsRegistry.registerProject(projectId, ref.current, position);
 
-		console.log(
-			"[PROJECT_DEBUG] Projet enregistré:",
-			projectId,
-			"position:",
-			position,
-			"est dernier:",
-			projectsRegistry.isLastProject(projectId),
-		);
-
 		return () => {
 			// Si tous les projets sont démontés, nettoyer le registre
 			if (document.querySelectorAll("[data-project-id]").length === 1) {
@@ -80,11 +71,6 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 	useEffect(() => {
 		if (!ref.current) return;
 
-		console.log(
-			"[PROJECT_DEBUG] Initialisation de l'observer pour:",
-			projectId,
-		);
-
 		// Utiliser des seuils différents selon le type d'appareil
 		const isMobile = window.innerWidth < 768;
 		const observerOptions = {
@@ -95,8 +81,6 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 			// Réduire la marge pour détecter les projets plus tôt
 			rootMargin: isMobile ? "-2% 0px" : "-15% 0px",
 		};
-
-		console.log("[PROJECT_DEBUG] Options de l'observer:", observerOptions);
 
 		// Fonction pour calculer le pourcentage du projet visible dans la fenêtre
 		const calculateVisibleRatio = (rect: DOMRectReadOnly): number => {
@@ -160,28 +144,7 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 				// Bonus spécial pour le dernier projet quand on est en bas de page
 				if (isLastProject && isAtBottom && visibleRatio > 0.3) {
 					visibilityScore += 0.5;
-					console.log(
-						"[PROJECT_DEBUG] Dernier projet détecté en bas de page:",
-						projectId,
-					);
 				}
-
-				console.log("[PROJECT_DEBUG] Intersection détectée:", {
-					projectId,
-					isIntersecting: entry.isIntersecting,
-					intersectionRatio: entry.intersectionRatio.toFixed(2),
-					visibleRatio: visibleRatio.toFixed(2),
-					centrality: centrality.toFixed(2),
-					enteringFromTop,
-					isLastProject,
-					isAtBottom,
-					visibilityScore: visibilityScore.toFixed(2),
-					isInTopHalf,
-					position: {
-						top: boundingRect.top,
-						bottom: boundingRect.bottom,
-					},
-				});
 
 				// Déterminer si ce projet doit être considéré comme "visible"
 				// On utilise un seuil plus élevé pour éviter les faux positifs
@@ -212,24 +175,6 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 								(isLastProject && isAtBottom && visibleRatio > 0.3),
 						},
 					});
-
-					console.log(
-						"[PROJECT_DEBUG] Émission de l'événement projectInView:",
-						projectId,
-						"score:",
-						visibilityScore.toFixed(2),
-						"enteringFromTop:",
-						enteringFromTop,
-						"isLastProject:",
-						isLastProject,
-						"isAtBottom:",
-						isAtBottom,
-						"isActive:",
-						(centrality > 0.7 && visibleRatio > 0.3) ||
-							enteringFromTop ||
-							(isLastProject && isAtBottom && visibleRatio > 0.3),
-					);
-
 					window.dispatchEvent(event);
 				} else if (entry.intersectionRatio === 0) {
 					// Émettre un événement quand le projet n'est plus visible du tout
@@ -245,8 +190,6 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 						},
 					});
 
-					console.log("[PROJECT_DEBUG] Projet hors de vue:", projectId);
-
 					window.dispatchEvent(event);
 				}
 			}
@@ -256,7 +199,6 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 
 		return () => {
 			if (ref.current) {
-				console.log("[PROJECT_DEBUG] Nettoyage de l'observer pour:", projectId);
 				observer.unobserve(ref.current);
 			}
 		};
@@ -292,7 +234,7 @@ const CoverImage = ({
 	title,
 	index,
 }: {
-	cover: Project["gallery"];
+	cover: Projects["gallery"];
 	title?: string;
 	index: number;
 }) => {
@@ -326,7 +268,7 @@ const Carousel = ({
 	currentIndex,
 	setCurrentIndex,
 }: {
-	images: Project["gallery"];
+	images: Projects["gallery"];
 	currentIndex: number;
 	setCurrentIndex: (index: number) => void;
 }) => {
@@ -334,12 +276,12 @@ const Carousel = ({
 		<div className="inline-flex w-full items-center gap-1.5 overflow-x-scroll md:gap-2.5">
 			{images?.map((image, index) => (
 				<Image
+					key={image.asset?._ref}
 					className={clsx(
 						"max-h-[61px] max-w-[108px] cursor-pointer",
 						currentIndex !== index && "opacity-50",
 					)}
 					onClick={() => setCurrentIndex(index)}
-					key={image._key}
 					ratio="16/9"
 					src={image.asset?._ref ? urlFor(image).url() : ""}
 					alt={image.alt || ""}

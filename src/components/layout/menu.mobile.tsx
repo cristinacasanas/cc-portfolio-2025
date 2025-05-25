@@ -23,30 +23,39 @@ const MenuItem = ({
 	onClick,
 	children,
 	className = "font-serif text-base text-color-black-solid leading-[21px] font-extralight",
-}: MenuItemProps) => (
-	<div className="inline-flex items-center justify-center gap-2.5 px-1 py-0.5">
-		<div className={clsx("justify-start", className)}>
-			{to ? (
-				<Link to={to} search={search}>
-					{children}
-				</Link>
-			) : (
-				<button className="cursor-pointer" type="button" onClick={onClick}>
-					{children}
-				</button>
-			)}
+}: MenuItemProps) => {
+	const { close: closeMenu } = useStore(menuMobileStore);
+
+	const handleClick = () => {
+		closeMenu();
+		onClick?.();
+	};
+
+	return (
+		<div className="inline-flex items-center justify-center gap-2.5 px-1 py-0.5">
+			<div className={clsx("justify-start", className)}>
+				{to ? (
+					<Link to={to} search={search} onClick={closeMenu}>
+						{children}
+					</Link>
+				) : (
+					<button
+						className="cursor-pointer"
+						type="button"
+						onClick={handleClick}
+					>
+						{children}
+					</button>
+				)}
+			</div>
 		</div>
-	</div>
-);
+	);
+};
 
 export const MenuMobile = () => {
-	const {
-		isOpen,
-		toggle: toggleMenu,
-		close: closeMenu,
-	} = useStore(menuMobileStore);
+	const { isOpen, close: closeMenu } = useStore(menuMobileStore);
 	const { toggle: toggleAbout } = useStore(aboutStore);
-	const { toggle: toggleOverlay, close: closeOverlay } = useStore(overlayStore);
+	const { toggle: toggleOverlay } = useStore(overlayStore);
 	const { t, i18n } = useTranslation();
 
 	const [isVisible, setIsVisible] = useState(false);
@@ -108,7 +117,7 @@ export const MenuMobile = () => {
 
 						<MenuItem
 							to="/lab"
-							search={{ view: "canvas", lang: currentLang }}
+							search={{ view: "list" }}
 							className="font-extralight font-serif text-base leading-[21px]"
 						>
 							{t("lab")}

@@ -1,14 +1,11 @@
 "use client";
+import { useSearch } from "@tanstack/react-router";
 import { DragAndDropView } from "./drag-and-drop.view";
 import { InfiniteImageGrid } from "./lab.canvas";
 import { ListView } from "./list.view";
 
-interface LabViewProps {
-	initialView?: string;
-}
-
-export default function LabView({ initialView = "canvas" }: LabViewProps) {
-	const view = initialView;
+export default function LabView() {
+	const { view } = useSearch({ from: "/lab" });
 
 	return view === "grid" ? (
 		<InfiniteImageGrid />

@@ -16,7 +16,7 @@ export const List: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
 				d="M23.7275 0.506531V8.68817H0.272461V0.506531H23.7275Z"
 				fill="black"
 				stroke="black"
-				stroke-width="0.545455"
+				strokeWidth="0.545455"
 			/>
 		</svg>
 	);

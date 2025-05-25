@@ -19,7 +19,7 @@ export const Grid: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
 					width="6"
 					height="6"
 					stroke="black"
-					stroke-width="0.545455"
+					strokeWidth="0.545455"
 				/>
 				<rect
 					x="17.7278"
@@ -27,7 +27,7 @@ export const Grid: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
 					width="6"
 					height="6"
 					stroke="black"
-					stroke-width="0.545455"
+					strokeWidth="0.545455"
 				/>
 				<rect
 					x="0.272727"
@@ -35,7 +35,7 @@ export const Grid: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
 					width="6"
 					height="6"
 					stroke="black"
-					stroke-width="0.545455"
+					strokeWidth="0.545455"
 				/>
 				<rect
 					x="17.7278"
@@ -43,7 +43,7 @@ export const Grid: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
 					width="6"
 					height="6"
 					stroke="black"
-					stroke-width="0.545455"
+					strokeWidth="0.545455"
 				/>
 			</g>
 		</svg>

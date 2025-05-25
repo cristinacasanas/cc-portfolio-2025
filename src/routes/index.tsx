@@ -7,10 +7,10 @@ import {
 import { client } from "@/lib/sanity";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useSearch } from "@tanstack/react-router";
-import type { Category, Project } from "studio/sanity.types";
+import type { Categories, Projects } from "studio/sanity.types";
 
-type ProjectWithCategories = Project & {
-	expandedCategories?: Category[];
+type ProjectWithCategories = Projects & {
+	expandedCategories?: Categories[];
 };
 
 export const Route = createFileRoute("/")({

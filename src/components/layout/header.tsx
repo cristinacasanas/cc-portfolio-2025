@@ -31,7 +31,7 @@ export const Header = () => {
 	return (
 		<header
 			className={clsx(
-				"fixed w-screen top-0 right-0 left-0 z-50 inline-flex h-[var(--header-height)] border-black border-border border-b  px-1.5 backdrop-blur-sm md:px-3 bg-background-primary/80",
+				"fixed top-0 right-0 left-0 z-50 inline-flex h-[var(--header-height)] w-screen border-black border-border border-b bg-background-primary/80 px-1.5 backdrop-blur-sm md:px-3",
 				isOpen && "bg-background-primary",
 			)}
 		>
@@ -74,7 +74,7 @@ export const Header = () => {
 				<div className="hidden items-center justify-center gap-2.5 px-1 py-0.5 md:flex">
 					<Link
 						to="/lab"
-						search={{ view: "canvas" }}
+						search={{ view: "list" }}
 						className="justify-start font-serif"
 					>
 						{t("lab")}
@@ -128,8 +128,8 @@ export const Header = () => {
 										}
 									}
 									if (isOpen) {
-										toggleOverlay();
 										toggle();
+										closeOverlay();
 									}
 								}}
 							/>

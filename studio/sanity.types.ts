@@ -46,6 +46,23 @@ export type Geopoint = {
   alt?: number
 }
 
+export type Lab = {
+  _type: 'lab'
+  images?: Array<{
+    asset?: {
+      _ref: string
+      _type: 'reference'
+      _weak?: boolean
+      [internalGroqTypeReferenceTo]?: 'sanity.imageAsset'
+    }
+    media?: unknown
+    hotspot?: SanityImageHotspot
+    crop?: SanityImageCrop
+    _type: 'image'
+    _key: string
+  }>
+}
+
 export type Network = {
   _id: string
   _type: 'network'
@@ -373,6 +390,7 @@ export type AllSanitySchemaTypes =
   | SanityImagePalette
   | SanityImageDimensions
   | Geopoint
+  | Lab
   | Network
   | About
   | Projects

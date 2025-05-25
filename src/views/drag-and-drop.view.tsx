@@ -1,7 +1,11 @@
-import { collection } from "@/mock/collection";
+import { getLab } from "@/lib/queries/lab";
+import { client } from "@/lib/sanity";
+
+import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import { motion } from "framer-motion";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Lab } from "studio/sanity.types";
 
 export function DragAndDropView() {
 	const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -14,13 +18,34 @@ export function DragAndDropView() {
 	const [stackIndexes, setStackIndexes] = useState<Array<number>>([]);
 	const highestZIndexRef = useRef(15);
 
+	const { data } = useQuery({
+		queryKey: ["lab"],
+		queryFn: async () => {
+			const data = await client.fetch<Lab[]>(getLab);
+			return data;
+		},
+	});
+
+	// Flatten all images from all lab entries
+	const allImages = useMemo(() => {
+		if (!data) return [];
+		return data.flatMap(
+			(lab) =>
+				lab.images
+					?.map((img) => (img as { asset?: { url?: string } }).asset?.url)
+					.filter((url): url is string => Boolean(url)) || [],
+		);
+	}, [data]);
+
 	useEffect(() => {
+		if (!allImages.length) return;
+
 		// Calculate center position based on window dimensions
 		const centerX = window.innerWidth / 2;
 		const centerY = window.innerHeight / 2;
 
 		// Create staggered initial positions in a cascade formation
-		const initialPositions = collection.slice(0, 15).map((_, index) => {
+		const initialPositions = allImages.slice(0, 15).map((_, index) => {
 			// Create three columns of posters with slight variations
 			const column = index % 3;
 			const row = Math.floor(index / 3);
@@ -39,12 +64,12 @@ export function DragAndDropView() {
 		setPosterPositions(initialPositions);
 
 		// Set initial stacking order with incrementing z-index values
-		const initialStackIndexes = collection
+		const initialStackIndexes = allImages
 			.slice(0, 15)
 			.map((_, index) => index + 1);
 		highestZIndexRef.current = initialStackIndexes.length;
 		setStackIndexes(initialStackIndexes);
-	}, []);
+	}, [allImages]);
 
 	const handlePosterMouseDown = useCallback(
 		(e: React.MouseEvent, index: number) => {
@@ -116,14 +141,14 @@ export function DragAndDropView() {
 	return (
 		<div className="fixed inset-0 overflow-hidden">
 			<div ref={containerRef} className="absolute inset-0 overflow-hidden">
-				{collection.slice(0, 15).map((item, index) => {
+				{allImages.slice(0, 15).map((item, index) => {
 					const position = posterPositions[index] || { x: 0, y: 0 };
 					const isDragged = draggedIndex === index;
 					const zIndex = stackIndexes[index] || 0;
 
 					return (
 						<motion.div
-							key={item.id}
+							key={`${item.split("/").pop()}-${index}`}
 							// apparition progressive les unes après les autres
 							initial={{ opacity: 0 }}
 							animate={{ opacity: 1 }}
@@ -147,7 +172,7 @@ export function DragAndDropView() {
 							onMouseDown={(e) => handlePosterMouseDown(e, index)}
 						>
 							<img
-								src={item.image}
+								src={item}
 								alt={`Poster ${index}`}
 								className="h-auto w-full select-none"
 								draggable={false}

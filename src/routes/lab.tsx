@@ -1,17 +1,18 @@
-import { LabNav } from "@/components/layout/lab.nav";
-import { listStore } from "@/stores/list.store";
+import { LabFooter } from "@/components/layout/lab-footer";
+import { LabFooterOverlay } from "@/components/layout/lab-footer.overlay";
+import { getLab } from "@/lib/queries/lab";
+import { client } from "@/lib/sanity";
+import { TransitionView } from "@/views/transition.view";
 import { createFileRoute, useSearch } from "@tanstack/react-router";
-import { useStore } from "@tanstack/react-store";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Suspense, lazy, useEffect, useState } from "react";
+import type { Lab } from "studio/sanity.types";
 
-// Use lazy loading for the LabView component
 const LabView = lazy(() => import("@/views/lab.view"));
 
 export const Route = createFileRoute("/lab")({
 	component: LabRouteComponent,
 	validateSearch: (search: Record<string, unknown>) => {
-		// Extract and validate the view parameter
 		const view = search?.view?.toString() || "canvas";
 		return {
 			view:
@@ -23,88 +24,114 @@ export const Route = createFileRoute("/lab")({
 });
 
 function LabRouteComponent() {
-	// Get the view from search params
-	const { view } = useSearch({ from: "/lab" });
+	useSearch({ from: "/lab" });
+	const [showTransition, setShowTransition] = useState(true);
+
+	useEffect(() => {
+		// Vérifier si on doit montrer la transition
+		const shouldShowTransition = () => {
+			// Vérifier l'historique de navigation
+			const hasVisitedLabInSession = sessionStorage.getItem("lab-visited");
+
+			if (!hasVisitedLabInSession) {
+				// Première visite dans cette session
+				sessionStorage.setItem("lab-visited", "true");
+				return true;
+			}
+
+			// Vérifier le referrer comme fallback
+			const referrer = document.referrer;
+			if (referrer && !referrer.includes("/lab")) {
+				return true;
+			}
+
+			return false;
+		};
+
+		const shouldShow = shouldShowTransition();
+
+		if (!shouldShow) {
+			setShowTransition(false);
+			return;
+		}
+
+		const preloadImages = async () => {
+			try {
+				const data = await client.fetch<Lab[]>(getLab);
+				const allImages = data.flatMap(
+					(lab) =>
+						lab.images
+							?.map((img) => (img as { asset?: { url?: string } }).asset?.url)
+							.filter((url): url is string => Boolean(url)) || [],
+				);
+
+				const imagePromises = allImages.slice(0, 20).map((url: string) => {
+					return new Promise((resolve, reject) => {
+						const img = new Image();
+						img.onload = resolve;
+						img.onerror = reject;
+						img.src = url;
+					});
+				});
+
+				await Promise.allSettled(imagePromises);
+			} catch (error) {
+				console.log("Image preloading failed:", error);
+			}
+		};
+
+		preloadImages();
+
+		const timer = setTimeout(() => {
+			setShowTransition(false);
+		}, 4000);
+
+		return () => clearTimeout(timer);
+	}, []);
+
+	useEffect(() => {
+		return () => {
+			sessionStorage.removeItem("lab-visited");
+		};
+	}, []);
 
 	return (
-		// This div will now be a child of the main <Container> from __root.tsx
-		// Adjust styling as needed if it's meant to fill the container or have specific layout within it.
-		<div className="h-full w-full pt-[var(--header-height)]">
-			<Suspense>
-				<LabView initialView={view} />
-			</Suspense>
-			<LabFooter />
-			<div className="fixed bottom-0 left-0 h-28 w-screen bg-background-primary/10 backdrop-blur-[2px]" />
+		<div>
+			<AnimatePresence mode="wait">
+				{showTransition ? (
+					<motion.div
+						key="transition"
+						initial={{ opacity: 0, filter: "blur(1.5px)" }}
+						animate={{ opacity: 1, filter: "blur(0px)" }}
+						exit={{ opacity: 0, filter: "blur(1.5px)" }}
+						transition={{
+							duration: 0.8,
+							ease: "easeOut",
+						}}
+						className="flex h-full w-full items-center justify-center pt-[var(--header-height)]"
+					>
+						<TransitionView />
+					</motion.div>
+				) : (
+					<motion.div
+						key="lab-view"
+						className="h-[calc(100dvh-var(--header-height))] pt-[var(--header-height)]"
+						initial={{ opacity: 0, filter: "blur(1.5px)", height: "0dvh" }}
+						animate={{ opacity: 1, filter: "blur(0px)", height: "100dvh" }}
+						transition={{
+							duration: 0.8,
+							ease: "easeOut",
+						}}
+					>
+						<Suspense>
+							<LabView />
+						</Suspense>
+						<div className="fixed bottom-0 left-0 h-28 w-screen bg-background-primary/10 backdrop-blur-[2px]" />
+					</motion.div>
+				)}
+			</AnimatePresence>
+			<LabFooter isTransition={showTransition} />
+			<LabFooterOverlay />
 		</div>
 	);
 }
-
-export const LabFooter = () => {
-	const { view } = useSearch({ from: "/lab" });
-	const { currentGlobalSizeState } = useStore(listStore);
-	const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
-	useEffect(() => {
-		const handleResize = () => {
-			setIsMobile(window.innerWidth < 768);
-		};
-
-		window.addEventListener("resize", handleResize);
-		return () => window.removeEventListener("resize", handleResize);
-	}, []);
-
-	const fontSize =
-		view === "list"
-			? currentGlobalSizeState === 0
-				? isMobile
-					? "96px"
-					: "262px" // expanded
-				: currentGlobalSizeState === 1
-					? isMobile
-						? "80px"
-						: "166px" // fullscreen
-					: isMobile
-						? "44px"
-						: "96px" // list
-			: isMobile
-				? "44px"
-				: "96px"; // initial desktop state
-
-	const lineHeight =
-		view === "list"
-			? currentGlobalSizeState === 0
-				? isMobile
-					? "59.78px"
-					: "195.52px"
-				: currentGlobalSizeState === 1
-					? isMobile
-						? "33.50px"
-						: "123.97px"
-					: isMobile
-						? "33.50px"
-						: "72.17px"
-			: isMobile
-				? "33.50px"
-				: "96px"; // adjusted to match fontSize
-
-	return (
-		<div className="pointer-events-none fixed right-6 bottom-6 left-6 z-50 flex items-end justify-between">
-			<motion.h1
-				className="font-extralight font-mono uppercase"
-				animate={{
-					fontSize,
-					lineHeight,
-				}}
-				transition={{
-					duration: 0.3,
-					ease: "easeInOut",
-				}}
-			>
-				Lab
-			</motion.h1>
-			<div className="pointer-events-auto">
-				<LabNav />
-			</div>
-		</div>
-	);
-};

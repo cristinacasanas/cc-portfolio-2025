@@ -1,9 +1,32 @@
-import type React from "react";
 // import clsx from "clsx"
+import { getLab } from "@/lib/queries/lab";
+import { client } from "@/lib/sanity";
+import { useQuery } from "@tanstack/react-query";
+import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { collection } from "../mock/collection";
+
+import type { Lab } from "studio/sanity.types";
 
 export const InfiniteImageGrid = () => {
+	const { data } = useQuery({
+		queryKey: ["lab"],
+		queryFn: async () => {
+			const data = await client.fetch<Lab[]>(getLab);
+			return data;
+		},
+	});
+
+	// Flatten all images from all lab entries
+	const allImages = useMemo(() => {
+		if (!data) return [];
+		return data.flatMap(
+			(lab) =>
+				lab.images
+					?.map((img) => (img as { asset?: { url?: string } }).asset?.url)
+					.filter((url): url is string => Boolean(url)) || [],
+		);
+	}, [data]);
+
 	const gridRef = useRef<HTMLDivElement>(null);
 	const [position, setPosition] = useState({ x: 0, y: 0 });
 	const [zoom, setZoom] = useState(1);
@@ -34,10 +57,14 @@ export const InfiniteImageGrid = () => {
 	const actualCellGap = useMemo(() => CELL_GAP * zoom, [zoom]);
 
 	// Fonction pour obtenir l'URL de l'image en fonction de la position
-	const getImageUrl = useCallback((row: number, col: number): string => {
-		const index = Math.abs((row * 10 + col) % collection.length);
-		return collection[index].image;
-	}, []);
+	const getImageUrl = useCallback(
+		(row: number, col: number): string => {
+			if (!allImages.length) return "";
+			const index = Math.abs((row * 10 + col) % allImages.length);
+			return allImages[index];
+		},
+		[allImages],
+	);
 
 	// Précharger les tailles d'images
 	const preloadImageSize = useCallback(

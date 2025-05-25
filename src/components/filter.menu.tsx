@@ -8,11 +8,11 @@ import { useStore } from "@tanstack/react-store";
 import clsx from "clsx";
 import { AnimatePresence, motion } from "framer-motion";
 import React from "react";
-import type { Category } from "studio/sanity.types";
+import type { Categories } from "studio/sanity.types";
 import Plus from "./ui/icons/plus";
 
 export const FilterMenu = () => {
-	const { isOpen, toggle: toggleFilterMenu } = useStore(filterMenuStore);
+	const { isOpen } = useStore(filterMenuStore);
 
 	return (
 		<FilterWrapper>
@@ -40,7 +40,7 @@ const FilterContent = ({ isOpen }: { isOpen: boolean }) => {
 
 	const { data: categories } = useQuery({
 		queryKey: ["categories"],
-		queryFn: () => client.fetch<Category[]>(getAllCategories),
+		queryFn: () => client.fetch<Categories[]>(getAllCategories),
 	});
 
 	const containerVariants = {
@@ -89,13 +89,13 @@ const FilterContent = ({ isOpen }: { isOpen: boolean }) => {
 			{isOpen && (
 				<motion.div
 					initial={{ opacity: 0, height: 0 }}
-					animate={{ opacity: 1, height: "264px" }}
+					animate={{ opacity: 1, height: "auto" }}
 					exit={{ opacity: 0, height: 0 }}
 					transition={{ duration: 0.3 }}
-					className="inline-flex items-center justify-start gap-0.5 self-stretch rounded-sm bg-background-primary/80 px-4 py-0.5 backdrop-blur-sm"
+					className="inline-flex items-center justify-start gap-0.5 self-stretch bg-background-primary/80 px-4 py-0.5 backdrop-blur-sm"
 				>
 					<motion.div
-						className="inline-flex w-[139px] flex-col items-start justify-center gap-3"
+						className="inline-flex w-[139px] flex-col items-start justify-center gap-4 py-4.5"
 						variants={containerVariants}
 						initial="hidden"
 						animate="show"
@@ -166,7 +166,7 @@ const FilterTrigger = ({ isOpen }: { isOpen: boolean }) => {
 
 	const { data: categories } = useQuery({
 		queryKey: ["categories"],
-		queryFn: () => client.fetch<Category[]>(getAllCategories),
+		queryFn: () => client.fetch<Categories[]>(getAllCategories),
 	});
 
 	const selectedCategory = React.useMemo(() => {
@@ -195,8 +195,8 @@ const FilterTrigger = ({ isOpen }: { isOpen: boolean }) => {
 				}
 			}}
 		>
-			<div className="inline-flex h-16 flex-col items-start justify-between pt-3 pb-2.5">
-				<h3 className="justify-start font-normal font-serif text-sm leading-loose tracking-tight">
+			<div className="inline-flex h-16 flex-col items-start justify-between gap-2 py-1 pb-2.5">
+				<h3 className="justify-start font-normal font-serif text-xs leading-loose tracking-tight">
 					Catégories
 				</h3>
 				<div className="inline-flex items-center justify-center gap-2.5">

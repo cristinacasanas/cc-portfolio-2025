@@ -1,10 +1,14 @@
 import { Image, type ImageProps } from "@/components/ui/image";
-import { collection } from "@/mock/collection";
+
+import { getLab } from "@/lib/queries/lab";
+import { client } from "@/lib/sanity";
 import { listStore } from "@/stores/list.store";
+import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import { type VariantProps, cva } from "class-variance-authority";
 import clsx from "clsx";
-import { useCallback, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
+import type { Lab } from "studio/sanity.types";
 
 interface CollectionItemType {
 	id: string | number;
@@ -35,7 +39,7 @@ const imageVariants = cva(
 			size: {
 				small: "h-full w-full",
 				medium: "h-full w-full",
-				large: "h-full w-full object-contain",
+				large: "min-h-screen min-w-screen object-cover",
 			},
 		},
 		defaultVariants: {
@@ -106,6 +110,29 @@ export const ListView = () => {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const { currentGlobalSizeState, selectedId } = useStore(listStore);
 	const scrollStateRef = useRef<ScrollState | null>(null);
+
+	const { data } = useQuery({
+		queryKey: ["lab"],
+		queryFn: async () => {
+			const data = await client.fetch<Lab[]>(getLab);
+			return data;
+		},
+	});
+
+	// Flatten all images from all lab entries and create collection format
+	const collection = useMemo(() => {
+		if (!data) return [];
+		return data.flatMap(
+			(lab, labIndex) =>
+				lab.images
+					?.map((img, index) => ({
+						id: `lab-${labIndex}-${index}`,
+						image: (img as { asset?: { url?: string } }).asset?.url || "",
+						altText: `Lab image ${index}`,
+					}))
+					.filter((item) => item.image) || [],
+		);
+	}, [data]);
 
 	const spacing =
 		currentGlobalSizeState === 0
