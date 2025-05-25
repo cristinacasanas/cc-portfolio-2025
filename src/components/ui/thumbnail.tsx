@@ -11,20 +11,31 @@ export const Thumbnail = ({
 	item: Projects;
 	className?: string;
 }) => {
+	if (!item?._id) {
+		return null;
+	}
+
 	const handleClick = () => {
 		const projectId = item.slug?.current || item._id;
-		scrollToProject(projectId);
+		if (projectId) {
+			scrollToProject(projectId);
+		}
 	};
 
 	const getImageUrl = () => {
-		if (!item.thumbnail?.asset?._ref) return "";
+		if (!item?.thumbnail?.asset?._ref) return "";
 
-		// Use Sanity's transformation API to enforce 4:5 aspect ratio
-		return urlFor(item.thumbnail)
-			.width(300) // Set a base width (will be responsively scaled by CSS)
-			.height(375) // 4:5 ratio (300 * 5/4 = 375)
-			.fit("crop")
-			.url();
+		try {
+			// Use Sanity's transformation API to enforce 4:5 aspect ratio
+			return urlFor(item.thumbnail)
+				.width(300) // Set a base width (will be responsively scaled by CSS)
+				.height(375) // 4:5 ratio (300 * 5/4 = 375)
+				.fit("crop")
+				.url();
+		} catch (error) {
+			console.warn("Error generating image URL:", error);
+			return "";
+		}
 	};
 	return (
 		<button
