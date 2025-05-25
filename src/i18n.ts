@@ -45,6 +45,12 @@ i18n
 						awards: "Prix",
 					},
 				},
+				lab: {
+					transition: {
+						text1: "C'est mon terrain de jeu",
+						text2: "là où je teste, je cherche, je rate et je recommence.",
+					},
+				},
 			},
 			en: {
 				common: {
@@ -56,6 +62,12 @@ i18n
 					aboutModal: {
 						title: "About",
 						awards: "Awards",
+					},
+				},
+				lab: {
+					transition: {
+						text1: "This is my playground",
+						text2: "where I test, explore, fail, and try again.",
 					},
 				},
 			},

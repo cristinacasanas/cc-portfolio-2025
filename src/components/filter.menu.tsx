@@ -1,28 +1,30 @@
 import { getAllCategories } from "@/lib/queries";
 import { client } from "@/lib/sanity";
+import { filterMenuStore } from "@/stores/filter-menu.store";
 import { overlayStore } from "@/stores/overlay.store";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
+import clsx from "clsx";
 import { AnimatePresence, motion } from "framer-motion";
 import React from "react";
-import type { Category } from "studio/sanity.types";
+import type { Categories } from "studio/sanity.types";
 import Plus from "./ui/icons/plus";
 
 export const FilterMenu = () => {
-	const [isOpen, setIsOpen] = React.useState(false);
+	const { isOpen } = useStore(filterMenuStore);
 
 	return (
 		<FilterWrapper>
-			<FilterContent isOpen={isOpen} setIsOpen={setIsOpen} />
-			<FilterTrigger isOpen={isOpen} setIsOpen={setIsOpen} />
+			<FilterContent isOpen={isOpen} />
+			<FilterTrigger isOpen={isOpen} />
 		</FilterWrapper>
 	);
 };
 
 const FilterWrapper = ({ children }: { children: React.ReactNode }) => {
 	return (
-		<div className="-translate-x-1/2 fixed right-0 bottom-0 left-1/2 z-20 inline-flex h-[85px] w-full items-end justify-center gap-2.5 bg-gradient-to-b from-white/0 via-white/5 to-white/10 py-5 backdrop-blur-[2px] md:hidden">
+		<div className="-translate-x-1/2 fixed right-0 bottom-0 left-1/2 z-20 inline-flex h-[85px] w-full items-end justify-center gap-2.5 bg-gradient-to-b from-white/0 via-white/5 to-white/10 py-5 backdrop-blur-sm md:hidden">
 			<div className="inline-flex w-[290px] flex-col items-center justify-end gap-4">
 				{children}
 			</div>
@@ -30,17 +32,15 @@ const FilterWrapper = ({ children }: { children: React.ReactNode }) => {
 	);
 };
 
-const FilterContent = ({
-	isOpen,
-	setIsOpen,
-}: { isOpen: boolean; setIsOpen: (isOpen: boolean) => void }) => {
+const FilterContent = ({ isOpen }: { isOpen: boolean }) => {
 	const { category } = useSearch({ from: "/" });
 	const navigate = useNavigate();
-	const { toggle } = useStore(overlayStore, (state) => state);
+	const { close: closeOverlay } = useStore(overlayStore);
+	const { close: closeFilterMenu } = useStore(filterMenuStore);
 
 	const { data: categories } = useQuery({
 		queryKey: ["categories"],
-		queryFn: () => client.fetch<Category[]>(getAllCategories),
+		queryFn: () => client.fetch<Categories[]>(getAllCategories),
 	});
 
 	const containerVariants = {
@@ -68,8 +68,8 @@ const FilterContent = ({
 	};
 
 	const handleCategoryClick = (categorySlug?: string) => {
-		toggle();
-		setIsOpen(false);
+		closeOverlay();
+		closeFilterMenu();
 
 		if (categorySlug) {
 			navigate({
@@ -89,20 +89,20 @@ const FilterContent = ({
 			{isOpen && (
 				<motion.div
 					initial={{ opacity: 0, height: 0 }}
-					animate={{ opacity: 1, height: "264px" }}
+					animate={{ opacity: 1, height: "auto" }}
 					exit={{ opacity: 0, height: 0 }}
 					transition={{ duration: 0.3 }}
-					className="inline-flex items-center justify-start gap-0.5 self-stretch rounded-sm bg-background-primary/80 px-4 py-0.5 backdrop-blur-sm"
+					className="inline-flex items-center justify-start gap-0.5 self-stretch bg-background-primary/80 px-4 py-0.5 backdrop-blur-sm"
 				>
 					<motion.div
-						className="inline-flex w-[139px] flex-col items-start justify-center gap-3"
+						className="inline-flex w-[139px] flex-col items-start justify-center gap-4 py-4.5"
 						variants={containerVariants}
 						initial="hidden"
 						animate="show"
 						exit="exit"
 					>
 						<motion.div
-							className="flex flex-col items-start justify-center gap-1.5"
+							className="flex flex-col items-start justify-center gap-3"
 							variants={itemVariants}
 						>
 							<button
@@ -113,7 +113,10 @@ const FilterContent = ({
 								onClick={() => handleCategoryClick()}
 							>
 								<div
-									className={`font-mono uppercase leading-none ${!category ? "text-text-primary" : "text-text-secondary"}`}
+									className={clsx(
+										"font-mono uppercase leading-none",
+										!category ? "text-text-primary" : "text-text-secondary",
+									)}
 								>
 									All
 								</div>
@@ -123,7 +126,7 @@ const FilterContent = ({
 						{categories?.map((categoryItem) => (
 							<motion.div
 								key={categoryItem._id}
-								className="flex flex-col items-start justify-center gap-1.5"
+								className="flex flex-col items-start justify-center gap-3"
 								variants={itemVariants}
 							>
 								<button
@@ -136,12 +139,13 @@ const FilterContent = ({
 									}
 								>
 									<div
-										className={`font-mono text-xs uppercase leading-none ${
+										className={clsx(
+											"font-mono text-sm uppercase leading-none",
 											category ===
-											(categoryItem.slug?.current || categoryItem._id)
+												(categoryItem.slug?.current || categoryItem._id)
 												? "text-text-primary"
-												: "text-text-secondary"
-										}`}
+												: "text-text-secondary",
+										)}
 									>
 										{categoryItem.title?.fr || categoryItem.title?.en || ""}
 									</div>
@@ -155,16 +159,14 @@ const FilterContent = ({
 	);
 };
 
-const FilterTrigger = ({
-	isOpen,
-	setIsOpen,
-}: { isOpen: boolean; setIsOpen: (isOpen: boolean) => void }) => {
-	const { toggle } = useStore(overlayStore, (state) => state);
+const FilterTrigger = ({ isOpen }: { isOpen: boolean }) => {
+	const { toggle: toggleOverlay } = useStore(overlayStore);
+	const { toggle: toggleFilterMenu } = useStore(filterMenuStore);
 	const { category } = useSearch({ from: "/" });
 
 	const { data: categories } = useQuery({
 		queryKey: ["categories"],
-		queryFn: () => client.fetch<Category[]>(getAllCategories),
+		queryFn: () => client.fetch<Categories[]>(getAllCategories),
 	});
 
 	const selectedCategory = React.useMemo(() => {
@@ -183,17 +185,17 @@ const FilterTrigger = ({
 		<div
 			className="inline-flex h-16 w-[290px] cursor-pointer items-center justify-between rounded-br rounded-bl bg-background-primary/80 px-4 py-1"
 			onClick={() => {
-				toggle();
-				setIsOpen(!isOpen);
+				toggleOverlay();
+				toggleFilterMenu();
 			}}
 			onKeyDown={(e) => {
 				if (e.key === "Enter") {
-					toggle();
-					setIsOpen(!isOpen);
+					toggleOverlay();
+					toggleFilterMenu();
 				}
 			}}
 		>
-			<div className="inline-flex h-16 flex-col items-start justify-between pt-3 pb-2.5">
+			<div className="inline-flex h-16 flex-col items-start justify-between gap-2 py-1 pb-2.5">
 				<h3 className="justify-start font-normal font-serif text-xs leading-loose tracking-tight">
 					Catégories
 				</h3>

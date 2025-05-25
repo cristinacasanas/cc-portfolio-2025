@@ -7,10 +7,10 @@ import {
 import { client } from "@/lib/sanity";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useSearch } from "@tanstack/react-router";
-import type { Category, Project } from "studio/sanity.types";
+import type { Categories, Projects } from "studio/sanity.types";
 
-type ProjectWithCategories = Project & {
-	expandedCategories?: Category[];
+type ProjectWithCategories = Projects & {
+	expandedCategories?: Categories[];
 };
 
 export const Route = createFileRoute("/")({
@@ -54,7 +54,7 @@ function App() {
 	});
 
 	return (
-		<div className="col-span-4 flex flex-col gap-10 overflow-y-auto bg-background-primary md:gap-20">
+		<div className="col-span-4 flex h-[calc(100dvh-var(--header-height)-var(--mobile-thumbnails-bar-height)-var(--filter-menu-bar-height))] flex-col gap-10 overflow-y-auto bg-background-primary pb-8 md:h-[calc(100dvh-var(--header-height))] md:gap-20">
 			{data &&
 				data.length > 0 &&
 				data.map((project) => (

@@ -46,9 +46,84 @@ export type Geopoint = {
   alt?: number
 }
 
-export type Project = {
+export type Lab = {
+  _type: 'lab'
+  images?: Array<{
+    asset?: {
+      _ref: string
+      _type: 'reference'
+      _weak?: boolean
+      [internalGroqTypeReferenceTo]?: 'sanity.imageAsset'
+    }
+    media?: unknown
+    hotspot?: SanityImageHotspot
+    crop?: SanityImageCrop
+    _type: 'image'
+    _key: string
+  }>
+}
+
+export type Network = {
   _id: string
-  _type: 'project'
+  _type: 'network'
+  _createdAt: string
+  _updatedAt: string
+  _rev: string
+  links?: Array<{
+    title?: string
+    url?: string
+    _type: 'link'
+    _key: string
+  }>
+}
+
+export type About = {
+  _id: string
+  _type: 'about'
+  _createdAt: string
+  _updatedAt: string
+  _rev: string
+  description?: Array<{
+    children?: Array<{
+      marks?: Array<string>
+      text?: string
+      _type: 'span'
+      _key: string
+    }>
+    style?: 'normal' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'blockquote'
+    listItem?: 'bullet' | 'number'
+    markDefs?: Array<{
+      href?: string
+      _type: 'link'
+      _key: string
+    }>
+    level?: number
+    _type: 'block'
+    _key: string
+  }>
+  image?: {
+    asset?: {
+      _ref: string
+      _type: 'reference'
+      _weak?: boolean
+      [internalGroqTypeReferenceTo]?: 'sanity.imageAsset'
+    }
+    media?: unknown
+    hotspot?: SanityImageHotspot
+    crop?: SanityImageCrop
+    _type: 'image'
+  }
+  awards?: Array<{
+    placeholder?: string
+    url?: string
+    _type: 'award'
+    _key: string
+  }>
+}
+
+export type Projects = {
+  _id: string
+  _type: 'projects'
   _createdAt: string
   _updatedAt: string
   _rev: string
@@ -71,7 +146,7 @@ export type Project = {
     _type: 'reference'
     _weak?: boolean
     _key: string
-    [internalGroqTypeReferenceTo]?: 'category'
+    [internalGroqTypeReferenceTo]?: 'categories'
   }>
   description?: {
     fr?: string
@@ -157,9 +232,9 @@ export type SanityImageMetadata = {
   isOpaque?: boolean
 }
 
-export type Category = {
+export type Categories = {
   _id: string
-  _type: 'category'
+  _type: 'categories'
   _createdAt: string
   _updatedAt: string
   _rev: string
@@ -315,12 +390,15 @@ export type AllSanitySchemaTypes =
   | SanityImagePalette
   | SanityImageDimensions
   | Geopoint
-  | Project
+  | Lab
+  | Network
+  | About
+  | Projects
   | SanityImageCrop
   | SanityImageHotspot
   | SanityImageAsset
   | SanityImageMetadata
-  | Category
+  | Categories
   | Slug
   | Font
   | Design

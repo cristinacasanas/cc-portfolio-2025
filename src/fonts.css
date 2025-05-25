@@ -4,106 +4,146 @@
 
 /* ===== PP Neue Montreal Mono Font Family ===== */
 @font-face {
-  font-family: "PP Neue Montreal";
-  src: url("/public/assets/fonts/PPNeueMontrealMono-Thin.woff2") format("woff2");
-  font-weight: 100;
-  font-style: normal;
-  font-display: swap;
+	font-family: "PP Neue Montreal";
+	src: url("/assets/fonts/PPNeueMontrealMono-Thin.woff2") format("woff2"),
+		url("/assets/fonts/PPNeueMontrealMono-Thin.woff") format("woff");
+	font-weight: 100;
+	font-style: normal;
+	font-display: swap;
 }
 
 @font-face {
-  font-family: "PP Neue Montreal";
-  src: url("/public/assets/fonts/PPNeueMontrealMono-Book.woff2") format("woff2");
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
+	font-family: "PP Neue Montreal";
+	src: url("/assets/fonts/PPNeueMontrealMono-Book.woff2") format("woff2"),
+		url("/assets/fonts/PPNeueMontrealMono-Book.woff") format("woff");
+	font-weight: 300;
+	font-style: normal;
+	font-display: swap;
 }
 
 @font-face {
-  font-family: "PP Neue Montreal";
-  src: url("/public/assets/fonts/PPNeueMontrealMono-Regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
+	font-family: "PP Neue Montreal";
+	src: url("/assets/fonts/PPNeueMontrealMono-Regular.woff2") format("woff2"),
+		url("/assets/fonts/PPNeueMontrealMono-Regular.woff") format("woff");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
 }
 
 @font-face {
-  font-family: "PP Neue Montreal";
-  src: url("/public/assets/fonts/PPNeueMontrealMono-RegularItalic.woff2") format("woff2");
-  font-weight: 400;
-  font-style: italic;
-  font-display: swap;
+	font-family: "PP Neue Montreal";
+	src: url("/assets/fonts/PPNeueMontrealMono-RegularItalic.woff2")
+		format("woff2"), url("/assets/fonts/PPNeueMontrealMono-RegularItalic.woff")
+		format("woff");
+	font-weight: 400;
+	font-style: italic;
+	font-display: swap;
 }
 
 @font-face {
-  font-family: "PP Neue Montreal";
-  src: url("/public/assets/fonts/PPNeueMontrealMono-Medium.woff2") format("woff2");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
+	font-family: "PP Neue Montreal";
+	src: url("/assets/fonts/PPNeueMontrealMono-Medium.woff2") format("woff2"),
+		url("/assets/fonts/PPNeueMontrealMono-Medium.woff") format("woff");
+	font-weight: 500;
+	font-style: normal;
+	font-display: swap;
 }
 
 @font-face {
-  font-family: "PP Neue Montreal";
-  src: url("/public/assets/fonts/PPNeueMontrealMono-Bold.woff2") format("woff2");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
+	font-family: "PP Neue Montreal";
+	src: url("/assets/fonts/PPNeueMontrealMono-Bold.woff2") format("woff2"),
+		url("/assets/fonts/PPNeueMontrealMono-Bold.woff") format("woff");
+	font-weight: 700;
+	font-style: normal;
+	font-display: swap;
 }
 
 @font-face {
-  font-family: "PP Neue Montreal";
-  src: url("/public/assets/fonts/PPNeueMontrealMono-BoldItalic.woff2") format("woff2");
-  font-weight: 700;
-  font-style: italic;
-  font-display: swap;
+	font-family: "PP Neue Montreal";
+	src: url("/assets/fonts/PPNeueMontrealMono-BoldItalic.woff2") format("woff2"),
+		url("/assets/fonts/PPNeueMontrealMono-BoldItalic.woff") format("woff");
+	font-weight: 700;
+	font-style: italic;
+	font-display: swap;
 }
 
 /* ===== PP Editorial New Font Family ===== */
 @font-face {
-  font-family: "PP Editorial New";
-  src: url("/public/assets/fonts/PPEditorialNew-Ultralight.woff2") format("woff2");
-  font-weight: 100;
-  font-style: normal;
-  font-display: swap;
+	font-family: "PP Editorial New";
+	src: url("/assets/fonts/PPEditorialNew-Ultralight.woff2") format("woff2"),
+		url("/assets/fonts/PPEditorialNew-Ultralight.woff") format("woff");
+	font-weight: 100;
+	font-style: normal;
+	font-display: swap;
 }
 
 @font-face {
-  font-family: "PP Editorial New";
-  src: url("/public/assets/fonts/PPEditorialNew-UltralightItalic.woff2") format("woff2");
-  font-weight: 100;
-  font-style: italic;
-  font-display: swap;
+	font-family: "PP Editorial New";
+	src: url("/assets/fonts/PPEditorialNew-UltralightItalic.woff2")
+		format("woff2"), url("/assets/fonts/PPEditorialNew-UltralightItalic.woff")
+		format("woff");
+	font-weight: 100;
+	font-style: italic;
+	font-display: swap;
 }
 
 @font-face {
-  font-family: "PP Editorial New";
-  src: url("/public/assets/fonts/PPEditorialNew-Regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
+	font-family: "PP Editorial New";
+	src: url("/assets/fonts/PPEditorialNew-Regular.woff2") format("woff2"),
+		url("/assets/fonts/PPEditorialNew-Regular.woff") format("woff");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
 }
 
 @font-face {
-  font-family: "PP Editorial New";
-  src: url("/public/assets/fonts/PPEditorialNew-Italic.woff2") format("woff2");
-  font-weight: 400;
-  font-style: italic;
-  font-display: swap;
+	font-family: "PP Editorial New";
+	src: url("/assets/fonts/PPEditorialNew-Italic.woff2") format("woff2"),
+		url("/assets/fonts/PPEditorialNew-Italic.woff") format("woff");
+	font-weight: 400;
+	font-style: italic;
+	font-display: swap;
 }
 
 @font-face {
-  font-family: "PP Editorial New";
-  src: url("/public/assets/fonts/PPEditorialNew-Ultrabold.woff2") format("woff2");
-  font-weight: 800;
-  font-style: normal;
-  font-display: swap;
+	font-family: "PP Editorial New";
+	src: url("/assets/fonts/PPEditorialNew-Ultrabold.woff2") format("woff2"),
+		url("/assets/fonts/PPEditorialNew-Ultrabold.woff") format("woff");
+	font-weight: 800;
+	font-style: normal;
+	font-display: swap;
 }
 
 @font-face {
-  font-family: "PP Editorial New";
-  src: url("/public/assets/fonts/PPEditorialNew-UltraboldItalic.woff2") format("woff2");
-  font-weight: 800;
-  font-style: italic;
-  font-display: swap;
-} 
+	font-family: "PP Editorial New";
+	src: url("/assets/fonts/PPEditorialNew-UltraboldItalic.woff2") format("woff2"),
+		url("/assets/fonts/PPEditorialNew-UltraboldItalic.woff") format("woff");
+	font-weight: 800;
+	font-style: italic;
+	font-display: swap;
+}
+
+/* ===== Font Stacks avec fallbacks système ===== */
+:root {
+	--font-montreal: "PP Neue Montreal", "SF Mono", "Monaco", "Inconsolata",
+		"Roboto Mono", "Consolas", monospace;
+	--font-editorial: "PP Editorial New", "Georgia", "Times New Roman", "Times",
+		serif;
+}
+
+/* ===== Preload critique pour Safari ===== */
+@supports (-webkit-appearance: none) {
+	@font-face {
+		font-family: "PP Neue Montreal Safari";
+		src: url("/assets/fonts/PPNeueMontrealMono-Regular.ttf") format("truetype");
+		font-weight: 400;
+		font-style: normal;
+	}
+
+	@font-face {
+		font-family: "PP Editorial New Safari";
+		src: url("/assets/fonts/PPEditorialNew-Regular.ttf") format("truetype");
+		font-weight: 400;
+		font-style: normal;
+	}
+}

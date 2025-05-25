@@ -3,7 +3,7 @@ import { client } from "@/lib/sanity";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearch } from "@tanstack/react-router";
 import clsx from "clsx";
-import type { Category } from "studio/sanity.types";
+import type { Categories } from "studio/sanity.types";
 import { Sidebar } from "../sidebar";
 
 export const CategoriesSidebar = () => {
@@ -11,7 +11,7 @@ export const CategoriesSidebar = () => {
 
 	const { data } = useQuery({
 		queryKey: ["categories"],
-		queryFn: () => client.fetch<Category[]>(getAllCategories),
+		queryFn: () => client.fetch<Categories[]>(getAllCategories),
 	});
 
 	return (
@@ -26,7 +26,7 @@ export const CategoriesSidebar = () => {
 							<Link
 								to="/"
 								className={clsx(
-									"justify-start uppercase leading-none",
+									"justify-start text-sm uppercase leading-none",
 									!category ? "text-text-primary" : "text-text-secondary",
 								)}
 							>
@@ -41,7 +41,7 @@ export const CategoriesSidebar = () => {
 										category: categoryItem.slug?.current || categoryItem._id,
 									}}
 									className={clsx(
-										"justify-start uppercase leading-none",
+										"justify-start text-sm uppercase leading-none",
 										category ===
 											(categoryItem.slug?.current || categoryItem._id)
 											? "text-text-primary"
@@ -59,7 +59,7 @@ export const CategoriesSidebar = () => {
 						href="https://instagram.com"
 						target="_blank"
 						rel="noopener noreferrer"
-						className="justify-start font-normal text-color-black-solid text-xs leading-none"
+						className="justify-start font-normal text-color-black-solid leading-none"
 					>
 						↗ Instagram
 					</a>
@@ -67,13 +67,13 @@ export const CategoriesSidebar = () => {
 						href="https://cosmos.com"
 						target="_blank"
 						rel="noopener noreferrer"
-						className="justify-start font-normal text-color-black-solid text-xs leading-none"
+						className="justify-start font-normal text-color-black-solid leading-none"
 					>
 						↗ Cosmos
 					</a>
 					<a
 						href="mailto:contact@example.com"
-						className="justify-start font-normal text-color-black-solid text-xs leading-none"
+						className="justify-start font-normal text-color-black-solid leading-none"
 					>
 						↗ Mail
 					</a>

@@ -2,16 +2,22 @@ import { ProjectCard } from "@/components/projects";
 import { client } from "@/lib/sanity";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import type { Project } from "studio/sanity.types";
+import type { Projects } from "studio/sanity.types";
 
 export const Route = createFileRoute("/projects")({
 	component: ProjectsPage,
+	validateSearch: (search: Record<string, unknown>) => {
+		const lang = search?.lang?.toString() || "fr";
+		return {
+			lang: lang === "en" || lang === "fr" ? lang : "fr",
+		};
+	},
 });
 
 function ProjectsPage() {
 	const { data } = useQuery({
 		queryKey: ["projects"],
-		queryFn: () => client.fetch<Project[]>("*[_type == 'project']"),
+		queryFn: () => client.fetch<Projects[]>("*[_type == 'project']"),
 	});
 
 	return (
