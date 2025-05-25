@@ -27,11 +27,7 @@ export const Thumbnail = ({
 
 		try {
 			// Use Sanity's transformation API to enforce 4:5 aspect ratio
-			return urlFor(item.thumbnail)
-				.width(300) // Set a base width (will be responsively scaled by CSS)
-				.height(375) // 4:5 ratio (300 * 5/4 = 375)
-				.fit("crop")
-				.url();
+			return urlFor(item.thumbnail).url();
 		} catch (error) {
 			console.warn("Error generating image URL:", error);
 			return "";
@@ -46,7 +42,7 @@ export const Thumbnail = ({
 			<Image
 				className={clsx(
 					className,
-					"min-h-full w-auto md:min-w-full md:max-w-full",
+					"aspect-[4/5] h-full w-auto md:min-w-full md:max-w-full",
 				)}
 				ratio="4/5"
 				src={getImageUrl()}
