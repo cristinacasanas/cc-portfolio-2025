@@ -1,8 +1,10 @@
 import { Image, type ImageProps } from "@/components/ui/image";
 import { collection } from "@/mock/collection";
+import { listStore } from "@/stores/list.store";
+import { useStore } from "@tanstack/react-store";
 import { type VariantProps, cva } from "class-variance-authority";
 import clsx from "clsx";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 
 interface CollectionItemType {
 	id: string | number;
@@ -15,9 +17,9 @@ const imageWrapperVariants = cva(
 	{
 		variants: {
 			size: {
-				small: "w-52 h-[260px]",
-				medium: "w-[624px] h-[780px]",
-				large: "w-screen h-screen",
+				small: "h-[103.60px] w-[83px] md:h-[260px] md:w-52",
+				medium: "h-[207px] w-[166px] md:h-[414.40px] md:w-[332px]",
+				large: "max-h-screen min-h-none w-screen md:max-h-none md:min-h-screen",
 			},
 		},
 		defaultVariants: {
@@ -80,13 +82,13 @@ const SizedImageDisplay = ({
 };
 
 const listContainerVariants = cva(
-	"w-full flex flex-col items-center py-4 relative",
+	"relative flex w-full flex-col items-center",
 	{
 		variants: {
 			spacing: {
 				default: "gap-2",
-				expanded: "gap-8",
-				fullscreen: "gap-8",
+				expanded: "gap-2",
+				fullscreen: "",
 			},
 		},
 		defaultVariants: {
@@ -102,8 +104,7 @@ interface ScrollState {
 
 export const ListView = () => {
 	const containerRef = useRef<HTMLDivElement>(null);
-	const [selectedId, setSelectedId] = useState<string | number | null>(null);
-	const [currentGlobalSizeState, setCurrentGlobalSizeState] = useState(0);
+	const { currentGlobalSizeState, selectedId } = useStore(listStore);
 	const scrollStateRef = useRef<ScrollState | null>(null);
 
 	const spacing =
@@ -125,23 +126,15 @@ export const ListView = () => {
 					behavior: "instant",
 				});
 			} else if (sizeState === 1) {
-				// Medium - scroll vers le début de l'image
-
-				// Debug pour medium
-				const rect = element.getBoundingClientRect();
-
-				element.scrollIntoView({
+				element?.scrollIntoView({
 					behavior: "instant",
 					block: "start",
 					inline: "nearest",
 				});
-
-				// Vérifier après scroll
-				setTimeout(() => {
-					const newRect = element.getBoundingClientRect();
-				}, 10);
 			} else if (sizeState === 2) {
-				const rect = element.getBoundingClientRect();
+				const rect = element?.getBoundingClientRect();
+				if (!rect) return;
+
 				const currentScrollY = window.scrollY;
 
 				// Informations sur la position de l'image dans la liste
@@ -168,16 +161,11 @@ export const ListView = () => {
 
 					// Si ça dépasse encore, utiliser scrollIntoView
 					if (targetScroll > maxScroll || targetScroll < 0) {
-						element.scrollIntoView({
+						element?.scrollIntoView({
 							behavior: "instant",
 							block: "center",
 							inline: "nearest",
 						});
-
-						// Vérifier le résultat
-						setTimeout(() => {
-							const finalRect = element.getBoundingClientRect();
-						}, 10);
 
 						return;
 					}
@@ -191,9 +179,7 @@ export const ListView = () => {
 				});
 
 				// Vérifier le résultat final
-				setTimeout(() => {
-					const finalRect = element.getBoundingClientRect();
-				}, 10);
+				setTimeout(() => {}, 10);
 			}
 		},
 		[],
@@ -210,10 +196,16 @@ export const ListView = () => {
 				const nextState = (currentGlobalSizeState + 1) % 3;
 
 				if (nextState === 0) {
-					setSelectedId(null);
-					setCurrentGlobalSizeState(0);
+					listStore.setState((prev) => ({
+						...prev,
+						currentGlobalSizeState: 0,
+						selectedId: null,
+					}));
 				} else {
-					setCurrentGlobalSizeState(nextState);
+					listStore.setState((prev) => ({
+						...prev,
+						currentGlobalSizeState: nextState,
+					}));
 				}
 
 				setTimeout(() => {
@@ -225,8 +217,11 @@ export const ListView = () => {
 					originalScrollY: currentScrollY,
 				};
 
-				setSelectedId(clickedId);
-				setCurrentGlobalSizeState(1);
+				listStore.setState((prev) => ({
+					...prev,
+					currentGlobalSizeState: 1,
+					selectedId: clickedId,
+				}));
 
 				setTimeout(() => {
 					scrollToImageImmediate(clickedId, 1);
@@ -237,24 +232,22 @@ export const ListView = () => {
 	);
 
 	return (
-		<div>
-			<div ref={containerRef} className={listContainerVariants({ spacing })}>
-				{collection.map((item, index) => (
-					<button
-						key={item.id}
-						type="button"
-						onClick={(e) => handleImageClick(e, item.id)}
-						className="appearance-none bg-transparent border-0 p-0 m-0 cursor-pointer"
-					>
-						<SizedImageDisplay
-							id={item.id}
-							item={item}
-							sizeState={currentGlobalSizeState}
-							isSelected={selectedId === item.id}
-						/>
-					</button>
-				))}
-			</div>
+		<div ref={containerRef} className={listContainerVariants({ spacing })}>
+			{collection.map((item) => (
+				<button
+					key={item.id}
+					type="button"
+					onClick={(e) => handleImageClick(e, item.id)}
+					className="m-0 cursor-pointer appearance-none border-0 bg-transparent p-0"
+				>
+					<SizedImageDisplay
+						id={item.id}
+						item={item}
+						sizeState={currentGlobalSizeState}
+						isSelected={selectedId === item.id}
+					/>
+				</button>
+			))}
 		</div>
 	);
 };

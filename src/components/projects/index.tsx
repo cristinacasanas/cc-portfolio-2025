@@ -1,10 +1,13 @@
 import Plus from "@/components/ui/icons/plus";
 import { Image } from "@/components/ui/image";
 import { urlFor } from "@/lib/sanity";
+import {
+	clear as clearScrollService,
+	registerProject,
+} from "@/lib/scroll.service";
 import clsx from "clsx";
 import { AnimatePresence, motion } from "framer-motion";
 import React, { useEffect, useRef } from "react";
-import { registerProject, clear as clearScrollService } from "@/lib/scroll.service";
 import type { Category, Project } from "studio/sanity.types";
 
 type ProjectWithCategories = Project & {
