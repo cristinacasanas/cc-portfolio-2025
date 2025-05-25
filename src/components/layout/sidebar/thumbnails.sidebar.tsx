@@ -7,7 +7,7 @@ import { client } from "@/lib/sanity";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Projects } from "studio/sanity.types";
 import { Sidebar } from "../sidebar";
 
@@ -37,6 +37,25 @@ export const ThumbnailsSidebar = () => {
 		},
 	});
 
+	// Fonction pour scroller vers une position
+	const scrollToPosition = useCallback(
+		(container: HTMLElement, position: number, isHorizontal = false) => {
+			const property = isHorizontal ? "scrollLeft" : "scrollTop";
+
+			try {
+				container.scrollTo({
+					[isHorizontal ? "left" : "top"]: position,
+					behavior: "smooth",
+				});
+			} catch (error) {
+				// Fallback si scrollTo ne fonctionne pas
+				container[property] = position;
+				console.log("[THUMBNAILS] Scroll failed:", error);
+			}
+		},
+		[],
+	);
+
 	useEffect(() => {
 		if (project) {
 			setVisibleProject(project);
@@ -62,13 +81,24 @@ export const ThumbnailsSidebar = () => {
 	}, [project]);
 
 	useEffect(() => {
-		if (!visibleProject || !sidebarRef.current) return;
+		if (!visibleProject || !sidebarRef.current || !data?.length) return;
 
 		const now = Date.now();
 		if (now - lastScrollTime.current < 150) return;
 
-		const activeThumb = thumbnailRefs.current.get(visibleProject);
-		if (activeThumb) {
+		// Attendre que les animations Framer Motion soient terminées
+		const scrollToThumbnail = () => {
+			const activeThumb = thumbnailRefs.current.get(visibleProject);
+			if (!activeThumb || !sidebarRef.current) return;
+
+			// Vérifier que l'élément est bien dans le DOM et a des dimensions
+			const rect = activeThumb.getBoundingClientRect();
+			if (rect.width === 0 || rect.height === 0) {
+				// Réessayer après un délai
+				setTimeout(scrollToThumbnail, 100);
+				return;
+			}
+
 			if (window.innerWidth >= 768) {
 				const sidebarRect = sidebarRef.current.getBoundingClientRect();
 				const thumbRect = activeThumb.getBoundingClientRect();
@@ -85,10 +115,7 @@ export const ThumbnailsSidebar = () => {
 						sidebarRect.height / 2 +
 						thumbRect.height / 2;
 
-					sidebarRef.current.scrollTo({
-						top: scrollTop,
-						behavior: "smooth",
-					});
+					scrollToPosition(sidebarRef.current, scrollTop);
 					lastScrollTime.current = now;
 				}
 			} else {
@@ -107,15 +134,15 @@ export const ThumbnailsSidebar = () => {
 						sidebarRect.width / 2 +
 						thumbRect.width / 2;
 
-					sidebarRef.current.scrollTo({
-						left: scrollLeft,
-						behavior: "smooth",
-					});
+					scrollToPosition(sidebarRef.current, scrollLeft, true);
 					lastScrollTime.current = now;
 				}
 			}
-		}
-	}, [visibleProject]);
+		};
+
+		// Délai pour attendre la fin des animations Framer Motion (300ms + marge)
+		setTimeout(scrollToThumbnail, 400);
+	}, [visibleProject, data, scrollToPosition]);
 
 	useEffect(() => {
 		thumbnailRefs.current.clear();
