@@ -328,7 +328,7 @@ export const MobileThumbnails = () => {
 	return (
 		<div
 			ref={containerRef}
-			className="sticky mt-2 inline-flex max-h-[100px] w-screen items-start gap-1.5 self-stretch overflow-x-auto pr-3 md:hidden"
+			className="relative mt-2 inline-flex w-screen items-start gap-1.5 self-stretch overflow-x-auto pr-3 md:hidden"
 		>
 			{sortedProjects
 				.map((item) => {
