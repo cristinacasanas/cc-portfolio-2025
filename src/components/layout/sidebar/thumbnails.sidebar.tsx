@@ -50,6 +50,7 @@ export const ThumbnailsSidebar = () => {
 			} catch (error) {
 				// Fallback si scrollTo ne fonctionne pas
 				container[property] = position;
+				console.log("[THUMBNAILS] Scroll failed:", error);
 			}
 		},
 		[],

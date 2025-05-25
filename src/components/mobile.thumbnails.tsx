@@ -60,11 +60,7 @@ export const MobileThumbnails = () => {
 		}
 	}, [visibleProject]);
 
-	const {
-		data: allProjects,
-		isSuccess: allProjectsSuccess,
-		error: allProjectsError,
-	} = useQuery({
+	const { data: allProjects, isSuccess: allProjectsSuccess } = useQuery({
 		queryKey: ["allMobileThumbnails"],
 		queryFn: async () => {
 			try {
@@ -78,11 +74,7 @@ export const MobileThumbnails = () => {
 		retryDelay: 1000,
 	});
 
-	const {
-		data: categoryProjects,
-		isSuccess: categorySuccess,
-		error: categoryError,
-	} = useQuery({
+	const { data: categoryProjects, isSuccess: categorySuccess } = useQuery({
 		queryKey: ["categoryMobileThumbnails", { category }],
 		queryFn: async () => {
 			if (!category) return null;
