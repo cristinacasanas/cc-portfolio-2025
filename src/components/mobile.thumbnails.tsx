@@ -8,7 +8,7 @@ import { useSearch } from "@tanstack/react-router";
 import clsx from "clsx";
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-import type { Project } from "studio/sanity.types";
+import type { Projects } from "studio/sanity.types";
 import { Thumbnail } from "./ui/thumbnail";
 
 interface ProjectInViewEvent extends CustomEvent {
@@ -58,7 +58,7 @@ export const MobileThumbnails = () => {
 	const { data: allProjects, isSuccess: allProjectsSuccess } = useQuery({
 		queryKey: ["allMobileThumbnails"],
 		queryFn: async () => {
-			return client.fetch<Project[]>(getAllProjectsSimple);
+			return client.fetch<Projects[]>(getAllProjectsSimple);
 		},
 	});
 
@@ -66,7 +66,7 @@ export const MobileThumbnails = () => {
 		queryKey: ["categoryMobileThumbnails", { category }],
 		queryFn: async () => {
 			if (!category) return null;
-			return client.fetch<Project[]>(getProjectsByCategorySimple(category));
+			return client.fetch<Projects[]>(getProjectsByCategorySimple(category));
 		},
 		enabled: !!category,
 	});

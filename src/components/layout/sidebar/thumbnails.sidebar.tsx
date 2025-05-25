@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-import type { Project } from "studio/sanity.types";
+import type { Projects } from "studio/sanity.types";
 import { Sidebar } from "../sidebar";
 
 interface ProjectInViewEvent extends CustomEvent {
@@ -30,10 +30,10 @@ export const ThumbnailsSidebar = () => {
 		queryKey: ["thumbnails", { category }],
 		queryFn: async () => {
 			if (category) {
-				return client.fetch<Project[]>(getProjectsByCategorySimple(category));
+				return client.fetch<Projects[]>(getProjectsByCategorySimple(category));
 			}
 
-			return client.fetch<Project[]>(getAllProjectsSimple);
+			return client.fetch<Projects[]>(getAllProjectsSimple);
 		},
 	});
 

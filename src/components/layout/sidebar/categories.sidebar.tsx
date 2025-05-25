@@ -3,7 +3,7 @@ import { client } from "@/lib/sanity";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearch } from "@tanstack/react-router";
 import clsx from "clsx";
-import type { Category } from "studio/sanity.types";
+import type { Categories } from "studio/sanity.types";
 import { Sidebar } from "../sidebar";
 
 export const CategoriesSidebar = () => {
@@ -11,7 +11,7 @@ export const CategoriesSidebar = () => {
 
 	const { data } = useQuery({
 		queryKey: ["categories"],
-		queryFn: () => client.fetch<Category[]>(getAllCategories),
+		queryFn: () => client.fetch<Categories[]>(getAllCategories),
 	});
 
 	return (
@@ -26,7 +26,7 @@ export const CategoriesSidebar = () => {
 							<Link
 								to="/"
 								className={clsx(
-									"justify-start uppercase leading-none text-sm",
+									"justify-start text-sm uppercase leading-none",
 									!category ? "text-text-primary" : "text-text-secondary",
 								)}
 							>
@@ -41,7 +41,7 @@ export const CategoriesSidebar = () => {
 										category: categoryItem.slug?.current || categoryItem._id,
 									}}
 									className={clsx(
-										"justify-start uppercase leading-none text-sm",
+										"justify-start text-sm uppercase leading-none",
 										category ===
 											(categoryItem.slug?.current || categoryItem._id)
 											? "text-text-primary"
@@ -55,28 +55,28 @@ export const CategoriesSidebar = () => {
 					</div>
 				</div>
 				<div className="flex flex-col items-start justify-start gap-4 font-serif">
-					<Link
-						to="https://instagram.com"
+					<a
+						href="https://instagram.com"
 						target="_blank"
 						rel="noopener noreferrer"
 						className="justify-start font-normal text-color-black-solid leading-none"
 					>
 						↗ Instagram
-					</Link>
-					<Link
-						to="https://cosmos.com"
+					</a>
+					<a
+						href="https://cosmos.com"
 						target="_blank"
 						rel="noopener noreferrer"
 						className="justify-start font-normal text-color-black-solid leading-none"
 					>
 						↗ Cosmos
-					</Link>
-					<Link
-						to="mailto:contact@example.com"
+					</a>
+					<a
+						href="mailto:contact@example.com"
 						className="justify-start font-normal text-color-black-solid leading-none"
 					>
 						↗ Mail
-					</Link>
+					</a>
 				</div>
 			</div>
 		</Sidebar>

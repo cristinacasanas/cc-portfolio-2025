@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./fonts.css";
 
 body {
 	@apply m-0;
@@ -21,9 +22,6 @@ body {
 		--red--54: rgba(246, 81, 29, 1);
 		--rose--84: rgba(239, 188, 213, 1);
 
-		--font-mono: "PP Neue Montreal Mono", monospace;
-		--font-serif: "PP Editorial New", serif;
-
 		--header-height: 42px;
 		--mobile-thumbnails-bar-height: 50px;
 		--filter-menu-bar-height: 85px;
@@ -37,8 +35,9 @@ body {
 	--color-text-primary: var(--black);
 	--color-text-secondary: var(--black--60);
 
-	--font-mono: "SF Mono", "Monaco", "Inconsolata", "Fira Mono",
-		"Droid Sans Mono", "Source Code Pro", monospace;
-	--font-serif: "SF Pro Text", "SF Pro Icons", "Helvetica Neue", "Helvetica",
-		"Arial", sans-serif;
+	/* Polices personnalisées avec Tailwind v4 */
+	--font-mono: "PP Neue Montreal", "SF Mono", "Monaco", "Inconsolata",
+		"Roboto Mono", "Consolas", monospace;
+	--font-serif: "PP Editorial New", "Georgia", "Times New Roman", "Times", serif;
+	--font-sans: "PP Editorial New", "Georgia", "Times New Roman", "Times", serif;
 }

@@ -1,14 +1,14 @@
 import { urlFor } from "@/lib/sanity";
 import { scrollToProject } from "@/lib/scroll.service";
 import clsx from "clsx";
-import type { Project } from "studio/sanity.types";
+import type { Projects } from "studio/sanity.types";
 import { Image } from "./image";
 
 export const Thumbnail = ({
 	item,
 	className,
 }: {
-	item: Project;
+	item: Projects;
 	className?: string;
 }) => {
 	const handleClick = () => {
@@ -16,7 +16,6 @@ export const Thumbnail = ({
 		scrollToProject(projectId);
 	};
 
-	// Generate image URL with proper aspect ratio for mobile thumbnails
 	const getImageUrl = () => {
 		if (!item.thumbnail?.asset?._ref) return "";
 

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <style>
+    @font-face {
+      font-family: "Test Montreal";
+      src: url("/assets/fonts/PPNeueMontrealMono-Regular.woff2");
+      font-weight: 400;
+      font-style: normal;
+    }
+
+    .test {
+      font-family: "Test Montreal", monospace;
+      font-size: 24px;
+      margin: 20px;
+    }
+
+    .fallback {
+      font-family: monospace;
+      font-size: 24px;
+      margin: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="test">Test avec PP Neue Montreal - ABCDEFG 123456</div>
+  <div class="fallback">Test avec fallback monospace - ABCDEFG 123456</div>
+
+  <script>
+    console.log('Testing font loading...');
+
+    // Test direct access to font file
+    fetch('/assets/fonts/PPNeueMontrealMono-Regular.woff2')
+      .then(response => {
+        console.log('Font file response:', response.status, response.statusText);
+        if (response.ok) {
+          console.log('✅ Font file accessible');
+        } else {
+          console.log('❌ Font file not accessible');
+        }
+      })
+      .catch(error => {
+        console.log('❌ Font file error:', error);
+      });
+  </script>
+</body>
+
+</html>
