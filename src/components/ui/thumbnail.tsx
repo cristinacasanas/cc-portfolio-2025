@@ -42,7 +42,7 @@ export const Thumbnail = ({
 			<Image
 				className={clsx(
 					className,
-					"aspect-[4/5] h-full w-auto md:min-w-full md:max-w-full",
+					"aspect-[4/5] h-full w-auto object-contain md:min-w-full md:max-w-full",
 				)}
 				ratio="4/5"
 				src={getImageUrl()}
