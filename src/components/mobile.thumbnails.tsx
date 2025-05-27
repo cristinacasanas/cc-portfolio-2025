@@ -330,7 +330,7 @@ export const MobileThumbnails = () => {
 	return (
 		<div
 			ref={containerRef}
-			className="relative mt-2 inline-flex h-full max-h-16 w-screen items-start gap-1.5 self-stretch overflow-x-auto pr-3 md:hidden"
+			className="relative mt-2 h-auto flex w-screen items-start gap-1.5 self-stretch overflow-x-auto pr-3 md:hidden"
 		>
 			{sortedProjects
 				.map((item) => {
@@ -354,14 +354,14 @@ export const MobileThumbnails = () => {
 								duration: scrollingRef.current ? 0.1 : 0.3,
 								ease: "easeOut",
 							}}
-							className={clsx("max-w-1/8 transition-opacity duration-300")}
+							className={clsx("h-full w-full transition-opacity duration-300")}
 							onClick={() => {
 								if (projectId) {
 									setVisibleProject(projectId);
 								}
 							}}
 						>
-							<Thumbnail className="h-full" item={item} />
+							<Thumbnail className="h-full w-full" item={item} />
 						</motion.div>
 					);
 				})
