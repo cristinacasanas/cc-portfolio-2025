@@ -37,12 +37,12 @@ export const Thumbnail = ({
 		<button
 			type="button"
 			onClick={handleClick}
-			className="block h-full cursor-pointer"
+			className="block h-full w-full cursor-pointer"
 		>
 			<Image
 				className={clsx(
 					className,
-					"aspect-[4/5] h-full w-auto object-contain md:min-w-full md:max-w-full",
+					"aspect-[4/5] h-auto md:h-full w-full md:w-auto md:min-w-full md:max-w-full",
 				)}
 				ratio="4/5"
 				src={getImageUrl()}
