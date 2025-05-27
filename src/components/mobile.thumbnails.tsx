@@ -49,6 +49,7 @@ export const MobileThumbnails = () => {
 						containerRect.width / 2 +
 						thumbRect.width / 2;
 
+					// Scroll seulement horizontalement, pas verticalement
 					containerRef.current.scrollTo({
 						left: scrollLeft,
 						behavior: "smooth",
@@ -250,7 +251,8 @@ export const MobileThumbnails = () => {
 			}, 150);
 		};
 
-		document.addEventListener("scroll", handleScroll, { passive: true });
+		// Ne pas écouter le scroll du document pour éviter les conflits
+		// document.addEventListener("scroll", handleScroll, { passive: true });
 		const container = containerRef.current;
 		if (container) {
 			container.addEventListener("scroll", handleScroll, {
@@ -259,7 +261,7 @@ export const MobileThumbnails = () => {
 		}
 
 		return () => {
-			document.removeEventListener("scroll", handleScroll);
+			// document.removeEventListener("scroll", handleScroll);
 			if (container) {
 				container.removeEventListener("scroll", handleScroll);
 			}
@@ -309,7 +311,7 @@ export const MobileThumbnails = () => {
 				if (inCategory) {
 					return isVisible ? 0.9 : 0.7;
 				}
-				return 0;
+				return 0.3; // Au lieu de 0, garde une opacité minimale
 			}
 			return isVisible ? 0.9 : 0.6;
 		}
@@ -319,7 +321,7 @@ export const MobileThumbnails = () => {
 			if (inCategory) {
 				return isVisible ? 1 : 0.7;
 			}
-			return 0;
+			return 0.3; // Au lieu de 0, garde une opacité minimale
 		}
 
 		return isVisible ? 1 : 0.5;
