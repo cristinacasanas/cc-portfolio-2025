@@ -5,9 +5,8 @@ import {
 import { client } from "@/lib/sanity";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
-import clsx from "clsx";
 import { motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Projects } from "studio/sanity.types";
 import { Thumbnail } from "./ui/thumbnail";
 
@@ -33,6 +32,15 @@ export const MobileThumbnails = () => {
 	const activeProjectsRef = useRef<Set<string>>(new Set());
 	const enteringProjectsRef = useRef<Set<string>>(new Set());
 	const isMountedRef = useRef(true);
+	const lastVisibleProjectRef = useRef<string | null>(null);
+	const isInitializedRef = useRef(false);
+
+	// Debounce visible project changes to prevent flickering
+	const debouncedSetVisibleProject = useCallback((projectId: string) => {
+		if (lastVisibleProjectRef.current === projectId) return;
+		lastVisibleProjectRef.current = projectId;
+		setVisibleProject(projectId);
+	}, []);
 
 	useEffect(() => {
 		if (visibleProject && containerRef.current && !scrollingRef.current) {
@@ -49,7 +57,6 @@ export const MobileThumbnails = () => {
 						containerRect.width / 2 +
 						thumbRect.width / 2;
 
-					// Scroll seulement horizontalement, pas verticalement
 					containerRef.current.scrollTo({
 						left: scrollLeft,
 						behavior: "smooth",
@@ -91,43 +98,52 @@ export const MobileThumbnails = () => {
 		retryDelay: 1000,
 	});
 
-	const categoryProjectIds = new Set<string>();
-	if (category && categoryProjects) {
-		for (const item of categoryProjects) {
-			const projectId = item.slug?.current || item._id;
-			categoryProjectIds.add(projectId);
+	// Memoize category project IDs to prevent recalculation
+	const categoryProjectIds = useMemo(() => {
+		const ids = new Set<string>();
+		if (category && categoryProjects) {
+			for (const item of categoryProjects) {
+				const projectId = item.slug?.current || item._id;
+				ids.add(projectId);
+			}
 		}
-	}
+		return ids;
+	}, [category, categoryProjects]);
 
-	const sortedProjects =
-		allProjects && Array.isArray(allProjects)
-			? [...allProjects]
-					.filter(
-						(project) => project?._id && (project.slug?.current || project._id),
-					)
-					.sort((a, b) => {
-						if (!category || !categoryProjectIds.size) return 0;
+	// Memoize sorted projects to prevent recalculation
+	const sortedProjects = useMemo(() => {
+		if (!allProjects || !Array.isArray(allProjects)) return [];
 
-						const aInCategory = categoryProjectIds.has(
-							a.slug?.current || a._id,
-						);
-						const bInCategory = categoryProjectIds.has(
-							b.slug?.current || b._id,
-						);
+		return [...allProjects]
+			.filter(
+				(project) => project?._id && (project.slug?.current || project._id),
+			)
+			.sort((a, b) => {
+				if (!category || !categoryProjectIds.size) return 0;
 
-						if (aInCategory && !bInCategory) return -1;
-						if (!aInCategory && bInCategory) return 1;
-						return 0;
-					})
-			: [];
+				const aInCategory = categoryProjectIds.has(a.slug?.current || a._id);
+				const bInCategory = categoryProjectIds.has(b.slug?.current || b._id);
 
+				if (aInCategory && !bInCategory) return -1;
+				if (!aInCategory && bInCategory) return 1;
+				return 0;
+			});
+	}, [allProjects, category, categoryProjectIds]);
+
+	// Initialize first project immediately when data is available
 	useEffect(() => {
 		if (project) {
+			isInitializedRef.current = true;
 			setVisibleProject(project);
+			lastVisibleProjectRef.current = project;
 			return;
 		}
 
-		if (allProjectsSuccess && sortedProjects.length > 0) {
+		if (
+			allProjectsSuccess &&
+			sortedProjects.length > 0 &&
+			!isInitializedRef.current
+		) {
 			let firstProjectId: string;
 
 			if (
@@ -143,23 +159,25 @@ export const MobileThumbnails = () => {
 					sortedProjects[0].slug?.current || sortedProjects[0]._id;
 			}
 
-			if (!visibleProject) {
-				setVisibleProject(firstProjectId);
-			}
+			// Set immediately without debouncing for initial load
+			isInitializedRef.current = true;
+			setVisibleProject(firstProjectId);
+			lastVisibleProjectRef.current = firstProjectId;
 		}
 	}, [
 		project,
 		category,
-		allProjects,
 		allProjectsSuccess,
 		categoryProjects,
 		categorySuccess,
 		sortedProjects,
-		visibleProject,
 	]);
 
 	useEffect(() => {
 		const handleVisibleProject = (e: ProjectInViewEvent) => {
+			// Don't handle events until initialization is complete
+			if (!isInitializedRef.current) return;
+
 			const {
 				projectId,
 				isActive,
@@ -197,12 +215,12 @@ export const MobileThumbnails = () => {
 			}
 
 			if (enteringFromTop && projectId !== visibleProject) {
-				setVisibleProject(projectId);
+				debouncedSetVisibleProject(projectId);
 				return;
 			}
 
 			if (isActive && projectId !== visibleProject) {
-				setVisibleProject(projectId);
+				debouncedSetVisibleProject(projectId);
 			}
 		};
 
@@ -219,7 +237,7 @@ export const MobileThumbnails = () => {
 			activeProjectsRef.current.clear();
 			enteringProjectsRef.current.clear();
 		};
-	}, [visibleProject]);
+	}, [visibleProject, debouncedSetVisibleProject]);
 
 	useEffect(() => {
 		const handleScroll = () => {
@@ -237,7 +255,7 @@ export const MobileThumbnails = () => {
 				if (enteringProjectsRef.current.size > 0) {
 					const enteringProject = Array.from(enteringProjectsRef.current)[0];
 					if (enteringProject !== visibleProject && isMountedRef.current) {
-						setVisibleProject(enteringProject);
+						debouncedSetVisibleProject(enteringProject);
 						return;
 					}
 				}
@@ -245,14 +263,12 @@ export const MobileThumbnails = () => {
 				if (activeProjectsRef.current.size > 0) {
 					const activeProject = Array.from(activeProjectsRef.current)[0];
 					if (activeProject !== visibleProject && isMountedRef.current) {
-						setVisibleProject(activeProject);
+						debouncedSetVisibleProject(activeProject);
 					}
 				}
 			}, 150);
 		};
 
-		// Ne pas écouter le scroll du document pour éviter les conflits
-		// document.addEventListener("scroll", handleScroll, { passive: true });
 		const container = containerRef.current;
 		if (container) {
 			container.addEventListener("scroll", handleScroll, {
@@ -261,7 +277,6 @@ export const MobileThumbnails = () => {
 		}
 
 		return () => {
-			// document.removeEventListener("scroll", handleScroll);
 			if (container) {
 				container.removeEventListener("scroll", handleScroll);
 			}
@@ -269,7 +284,7 @@ export const MobileThumbnails = () => {
 				clearTimeout(scrollTimerRef.current);
 			}
 		};
-	}, [visibleProject]);
+	}, [visibleProject, debouncedSetVisibleProject]);
 
 	// Nettoyage des références lors du changement de projets
 	useEffect(() => {
@@ -288,49 +303,48 @@ export const MobileThumbnails = () => {
 		};
 	}, []);
 
-	const getProjectOpacity = (projectId: string) => {
-		if (!projectId) return 0;
+	// Memoize opacity calculation to prevent unnecessary recalculations
+	const getProjectOpacity = useCallback(
+		(projectId: string) => {
+			if (!projectId) return 0;
 
-		let isVisible = projectId === visibleProject;
+			let isVisible = projectId === visibleProject;
 
-		if (!visibleProject && sortedProjects.length > 0) {
-			if (category && categoryProjects && categoryProjects.length > 0) {
-				const firstCategoryProjectId =
-					categoryProjects[0]?.slug?.current || categoryProjects[0]?._id;
-				isVisible = projectId === firstCategoryProjectId;
-			} else {
-				const firstProjectId =
-					sortedProjects[0]?.slug?.current || sortedProjects[0]?._id;
-				isVisible = projectId === firstProjectId;
+			if (!visibleProject && sortedProjects.length > 0) {
+				if (category && categoryProjects && categoryProjects.length > 0) {
+					const firstCategoryProjectId =
+						categoryProjects[0]?.slug?.current || categoryProjects[0]?._id;
+					isVisible = projectId === firstCategoryProjectId;
+				} else {
+					const firstProjectId =
+						sortedProjects[0]?.slug?.current || sortedProjects[0]?._id;
+					isVisible = projectId === firstProjectId;
+				}
 			}
-		}
 
-		if (scrollingRef.current) {
 			if (category) {
 				const inCategory = categoryProjectIds.has(projectId);
 				if (inCategory) {
-					return isVisible ? 0.9 : 0.7;
+					return isVisible ? 1 : 0.7;
 				}
-				return 0.3; // Au lieu de 0, garde une opacité minimale
+				return 0.3;
 			}
-			return isVisible ? 0.9 : 0.6;
-		}
 
-		if (category) {
-			const inCategory = categoryProjectIds.has(projectId);
-			if (inCategory) {
-				return isVisible ? 1 : 0.7;
-			}
-			return 0.3; // Au lieu de 0, garde une opacité minimale
-		}
-
-		return isVisible ? 1 : 0.5;
-	};
+			return isVisible ? 1 : 0.5;
+		},
+		[
+			visibleProject,
+			sortedProjects,
+			category,
+			categoryProjects,
+			categoryProjectIds,
+		],
+	);
 
 	return (
 		<div
 			ref={containerRef}
-			className="relative mt-2 h-auto flex w-screen items-start gap-1.5 self-stretch overflow-x-auto pr-3 md:hidden"
+			className="relative mt-2 flex h-auto w-screen items-start gap-1.5 self-stretch overflow-x-auto pr-3 md:hidden"
 		>
 			{sortedProjects
 				.map((item) => {
@@ -351,13 +365,13 @@ export const MobileThumbnails = () => {
 								opacity: getProjectOpacity(projectId),
 							}}
 							transition={{
-								duration: scrollingRef.current ? 0.1 : 0.3,
+								duration: 0.2,
 								ease: "easeOut",
 							}}
-							className={clsx("h-full w-full transition-opacity duration-300")}
+							className="h-full w-full"
 							onClick={() => {
 								if (projectId) {
-									setVisibleProject(projectId);
+									debouncedSetVisibleProject(projectId);
 								}
 							}}
 						>

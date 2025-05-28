@@ -71,15 +71,16 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 	useEffect(() => {
 		if (!ref.current) return;
 
-		// Utiliser des seuils différents selon le type d'appareil
+		// Détecter si c'est un appareil tactile
+		const isTouchDevice =
+			"ontouchstart" in window || navigator.maxTouchPoints > 0;
 		const isMobile = window.innerWidth < 768;
+
 		const observerOptions = {
-			// Utiliser moins de seuils pour une détection plus stable
-			threshold: isMobile
-				? [0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-				: [0, 0.25, 0.5, 0.75, 1.0],
-			// Réduire la marge pour détecter les projets plus tôt
-			rootMargin: isMobile ? "-2% 0px" : "-15% 0px",
+			threshold: isTouchDevice
+				? [0, 0.2, 0.4, 0.6, 0.8, 1.0]
+				: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+			rootMargin: isMobile ? "-15% 0px" : "-20% 0px",
 		};
 
 		// Fonction pour calculer le pourcentage du projet visible dans la fenêtre
@@ -97,99 +98,110 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 			const distanceFromCenter = Math.abs(projectCenter - viewportCenter);
 			const maxDistance = window.innerHeight / 2;
 
-			// Plus la valeur est proche de 1, plus le projet est centré
 			return 1 - Math.min(1, distanceFromCenter / maxDistance);
 		};
 
 		// Fonction pour déterminer si le projet est entrant par le haut
 		const isEnteringFromTop = (rect: DOMRectReadOnly): boolean => {
-			// Le projet est considéré comme "entrant par le haut" si son bord supérieur
-			// est proche du haut de la fenêtre (entre 0 et 20% de la hauteur de la fenêtre)
 			const topEdgePosition = rect.top;
-			return topEdgePosition >= 0 && topEdgePosition < window.innerHeight * 0.2;
+			return topEdgePosition >= 0 && topEdgePosition < window.innerHeight * 0.3;
 		};
 
 		// Fonction pour vérifier si on est au bas de la page
 		const isNearBottomOfPage = (): boolean => {
 			const scrollPosition = window.scrollY + window.innerHeight;
 			const documentHeight = document.documentElement.scrollHeight;
-			// Considérer qu'on est près du bas si on est à moins de 5% de la fin
-			return documentHeight - scrollPosition < documentHeight * 0.05;
+			return documentHeight - scrollPosition < documentHeight * 0.1;
 		};
 
+		let lastEventTime = 0;
+		let lastScrollY = window.scrollY;
+		let scrollVelocity = 0;
+
 		const observer = new IntersectionObserver((entries) => {
+			const now = Date.now();
+			const currentScrollY = window.scrollY;
+
+			// Calculer la vélocité de scroll
+			scrollVelocity = Math.abs(currentScrollY - lastScrollY);
+			lastScrollY = currentScrollY;
+
+			// Throttle adaptatif basé sur la vélocité de scroll
+			const adaptiveThrottle =
+				scrollVelocity > 300 ? 300 : isTouchDevice ? 200 : 100;
+
+			if (now - lastEventTime < adaptiveThrottle) return;
+			lastEventTime = now;
+
 			for (const entry of entries) {
 				const boundingRect = entry.boundingClientRect;
-
-				// Calculer les métriques de visibilité
 				const visibleRatio = calculateVisibleRatio(boundingRect);
 				const centrality = calculateCentrality(boundingRect);
-				const isInTopHalf =
-					boundingRect.top + boundingRect.height / 2 < window.innerHeight / 2;
 				const enteringFromTop = isEnteringFromTop(boundingRect);
 				const isLastProject = projectsRegistry.isLastProject(projectId);
 				const isAtBottom = isNearBottomOfPage();
 
-				// Calculer un score global qui favorise:
-				// 1. Les projets qui entrent par le haut de l'écran
-				// 2. Les projets bien visibles
-				// 3. Les projets centrés dans la vue
-				let visibilityScore = visibleRatio * 0.4 + centrality * 0.6;
+				// Vérifier si on est au tout début de la page
+				const isAtTopOfPage = window.scrollY < 100;
+				const isFirstProject =
+					projectsRegistry.projects.size > 0 &&
+					Array.from(projectsRegistry.projects.entries()).sort(
+						([, a], [, b]) => a.position - b.position,
+					)[0][0] === projectId;
 
-				// Bonus important pour les projets qui entrent par le haut
+				// Calculer un score de visibilité unifié
+				let visibilityScore = visibleRatio * 0.5 + centrality * 0.5;
+
 				if (enteringFromTop) {
+					visibilityScore += 0.2;
+				}
+
+				if (isLastProject && isAtBottom && visibleRatio > 0.2) {
 					visibilityScore += 0.3;
 				}
 
-				// Bonus spécial pour le dernier projet quand on est en bas de page
-				if (isLastProject && isAtBottom && visibleRatio > 0.3) {
-					visibilityScore += 0.5;
+				// Bonus spécial pour le premier projet quand on est en haut de page
+				if (isFirstProject && isAtTopOfPage && visibleRatio > 0.3) {
+					visibilityScore += 0.4;
 				}
 
-				// Déterminer si ce projet doit être considéré comme "visible"
-				// On utilise un seuil plus élevé pour éviter les faux positifs
-				// MAIS on donne une priorité aux projets qui entrent par le haut
-				// OU au dernier projet quand on est en bas de page
-				const isSignificantlyVisible = isMobile
-					? visibilityScore > 0.4 ||
-						enteringFromTop ||
-						(centrality > 0.8 && visibleRatio > 0.2) ||
-						(isLastProject && isAtBottom && visibleRatio > 0.3)
-					: entry.intersectionRatio > 0.3;
+				// Seuils plus élevés pour les appareils tactiles et les scrolls rapides
+				const activeThreshold =
+					(isTouchDevice ? 0.7 : 0.6) + (scrollVelocity > 200 ? 0.1 : 0);
+				const visibilityThreshold = isTouchDevice ? 0.25 : 0.2;
 
-				if (entry.isIntersecting && isSignificantlyVisible) {
-					// Dispatch custom event when project is in view
+				// Déterminer si le projet est actif
+				const isActive =
+					(centrality > activeThreshold && visibleRatio > 0.4) ||
+					enteringFromTop ||
+					(isLastProject && isAtBottom && visibleRatio > visibilityThreshold) ||
+					(isFirstProject && isAtTopOfPage && visibleRatio > 0.3);
+
+				// Toujours émettre l'événement si le projet est visible
+				if (entry.isIntersecting && visibleRatio > 0.15) {
 					const event = new CustomEvent("projectInView", {
 						detail: {
 							projectId,
-							isInTopHalf,
+							isActive,
 							intersectionRatio: visibilityScore,
 							centrality,
 							visibleRatio,
 							enteringFromTop,
-							// Un projet est actif s'il est bien centré OU s'il entre par le haut
-							// OU s'il est le dernier projet et qu'on est en bas de page
-							isActive:
-								(centrality > 0.7 && visibleRatio > 0.3) ||
-								enteringFromTop ||
-								(isLastProject && isAtBottom && visibleRatio > 0.3),
 						},
 					});
 					window.dispatchEvent(event);
-				} else if (entry.intersectionRatio === 0) {
-					// Émettre un événement quand le projet n'est plus visible du tout
+				} else if (!entry.isIntersecting) {
+					// Émettre un événement de sortie
 					const event = new CustomEvent("projectInView", {
 						detail: {
 							projectId,
-							isInTopHalf: false,
+							isActive: false,
 							intersectionRatio: 0,
 							centrality: 0,
 							visibleRatio: 0,
 							enteringFromTop: false,
-							isActive: false,
 						},
 					});
-
 					window.dispatchEvent(event);
 				}
 			}

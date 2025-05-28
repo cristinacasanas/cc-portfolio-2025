@@ -71,10 +71,32 @@ export function DragAndDropView() {
 		setStackIndexes(initialStackIndexes);
 	}, [allImages]);
 
-	const handlePosterMouseDown = useCallback(
-		(e: React.MouseEvent, index: number) => {
+	const getEventCoordinates = useCallback((e: MouseEvent | TouchEvent) => {
+		if ("touches" in e) {
+			return {
+				clientX: e.touches[0]?.clientX || 0,
+				clientY: e.touches[0]?.clientY || 0,
+			};
+		}
+		return {
+			clientX: e.clientX,
+			clientY: e.clientY,
+		};
+	}, []);
+
+	const handlePosterStart = useCallback(
+		(e: React.MouseEvent | React.TouchEvent, index: number) => {
 			e.preventDefault();
 			e.stopPropagation();
+
+			const coords =
+				"touches" in e
+					? {
+							clientX: e.touches[0]?.clientX || 0,
+							clientY: e.touches[0]?.clientY || 0,
+						}
+					: { clientX: e.clientX, clientY: e.clientY };
+
 			setDraggedIndex(index);
 
 			const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -82,13 +104,13 @@ export function DragAndDropView() {
 			const centerY = rect.top + rect.height / 2;
 
 			setDragOffset({
-				x: e.clientX - centerX,
-				y: e.clientY - centerY,
+				x: coords.clientX - centerX,
+				y: coords.clientY - centerY,
 			});
 
 			dragStartPos.current = {
-				x: e.clientX,
-				y: e.clientY,
+				x: coords.clientX,
+				y: coords.clientY,
 			};
 
 			// Increment highest z-index and assign it to the clicked poster
@@ -100,43 +122,85 @@ export function DragAndDropView() {
 		[stackIndexes],
 	);
 
+	const handlePosterMouseDown = useCallback(
+		(e: React.MouseEvent, index: number) => {
+			handlePosterStart(e, index);
+		},
+		[handlePosterStart],
+	);
+
+	const handlePosterTouchStart = useCallback(
+		(e: React.TouchEvent, index: number) => {
+			handlePosterStart(e, index);
+		},
+		[handlePosterStart],
+	);
+
 	// Handler for dragging
 	const handleMouseMove = useCallback(
 		(e: MouseEvent) => {
 			if (draggedIndex === null) return;
+
+			const coords = getEventCoordinates(e);
 
 			// Use direct pixel positions instead of relative percentages
 			setPosterPositions((prev) => {
 				const newPositions = [...prev];
 				if (newPositions[draggedIndex]) {
 					newPositions[draggedIndex] = {
-						x: e.clientX - dragOffset.x,
-						y: e.clientY - dragOffset.y,
+						x: coords.clientX - dragOffset.x,
+						y: coords.clientY - dragOffset.y,
 					};
 				}
 				return newPositions;
 			});
 		},
-		[draggedIndex, dragOffset],
+		[draggedIndex, dragOffset, getEventCoordinates],
+	);
+
+	const handleTouchMove = useCallback(
+		(e: TouchEvent) => {
+			if (draggedIndex === null) return;
+			e.preventDefault(); // Prevent scrolling
+
+			const coords = getEventCoordinates(e);
+
+			// Use direct pixel positions instead of relative percentages
+			setPosterPositions((prev) => {
+				const newPositions = [...prev];
+				if (newPositions[draggedIndex]) {
+					newPositions[draggedIndex] = {
+						x: coords.clientX - dragOffset.x,
+						y: coords.clientY - dragOffset.y,
+					};
+				}
+				return newPositions;
+			});
+		},
+		[draggedIndex, dragOffset, getEventCoordinates],
 	);
 
 	// Handler for ending drag
-	const handleMouseUp = useCallback(() => {
+	const handleEnd = useCallback(() => {
 		setDraggedIndex(null);
 	}, []);
 
-	// Add global mouse event listeners
+	// Add global mouse and touch event listeners
 	useEffect(() => {
 		if (draggedIndex !== null) {
 			window.addEventListener("mousemove", handleMouseMove);
-			window.addEventListener("mouseup", handleMouseUp);
+			window.addEventListener("mouseup", handleEnd);
+			window.addEventListener("touchmove", handleTouchMove, { passive: false });
+			window.addEventListener("touchend", handleEnd);
 		}
 
 		return () => {
 			window.removeEventListener("mousemove", handleMouseMove);
-			window.removeEventListener("mouseup", handleMouseUp);
+			window.removeEventListener("mouseup", handleEnd);
+			window.removeEventListener("touchmove", handleTouchMove);
+			window.removeEventListener("touchend", handleEnd);
 		};
-	}, [draggedIndex, handleMouseMove, handleMouseUp]);
+	}, [draggedIndex, handleMouseMove, handleTouchMove, handleEnd]);
 
 	return (
 		<div className="fixed inset-0 overflow-hidden">
@@ -160,7 +224,7 @@ export function DragAndDropView() {
 							className={clsx(
 								"absolute",
 								isDragged ? "transition-none" : "transition-all duration-200",
-								"cursor-move select-none",
+								"cursor-move select-none touch-none",
 							)}
 							style={{
 								top: position.y,
@@ -170,6 +234,7 @@ export function DragAndDropView() {
 								width: "380px",
 							}}
 							onMouseDown={(e) => handlePosterMouseDown(e, index)}
+							onTouchStart={(e) => handlePosterTouchStart(e, index)}
 						>
 							<img
 								src={item}

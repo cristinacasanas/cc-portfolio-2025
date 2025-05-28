@@ -40,10 +40,7 @@ export const Thumbnail = ({
 			className="block h-full w-full cursor-pointer"
 		>
 			<Image
-				className={clsx(
-					className,
-					"aspect-[4/5] h-auto md:h-full w-full md:w-auto md:min-w-full md:max-w-full",
-				)}
+				className={clsx(className, "h-auto w-full object-cover")}
 				ratio="4/5"
 				src={getImageUrl()}
 				alt={item.title}
