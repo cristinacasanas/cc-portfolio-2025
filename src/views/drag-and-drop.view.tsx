@@ -224,7 +224,7 @@ export function DragAndDropView() {
 							className={clsx(
 								"absolute",
 								isDragged ? "transition-none" : "transition-all duration-200",
-								"cursor-move select-none touch-none",
+								"cursor-move touch-none select-none",
 							)}
 							style={{
 								top: position.y,
