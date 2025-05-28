@@ -43,7 +43,6 @@ export const InfiniteImageGrid = () => {
 
 	// Touch handling states
 	const [lastTouchDistance, setLastTouchDistance] = useState<number>(0);
-	const [lastTouchCenter, setLastTouchCenter] = useState({ x: 0, y: 0 });
 
 	const momentumRef = useRef({ x: 0, y: 0 });
 	const lastFrameTime = useRef(performance.now());
@@ -244,9 +243,7 @@ export const InfiniteImageGrid = () => {
 				// Multi-touch - prepare for pinch zoom
 				setIsDragging(false);
 				const distance = getTouchDistanceNative(touches);
-				const center = getTouchCenterNative(touches);
 				setLastTouchDistance(distance);
-				setLastTouchCenter(center);
 			}
 
 			// Réinitialiser le momentum
@@ -309,7 +306,6 @@ export const InfiniteImageGrid = () => {
 				}
 
 				setLastTouchDistance(distance);
-				setLastTouchCenter(center);
 			}
 		};
 

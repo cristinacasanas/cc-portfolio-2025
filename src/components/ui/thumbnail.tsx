@@ -43,7 +43,7 @@ export const Thumbnail = ({
 				className={clsx(className, "h-auto w-full object-cover")}
 				ratio="4/5"
 				src={getImageUrl()}
-				alt={item.title}
+				alt={item.title || "Thumbnail"}
 				draggable={false}
 			/>
 		</button>
