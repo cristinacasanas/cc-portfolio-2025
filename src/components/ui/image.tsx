@@ -15,6 +15,7 @@ const aspectRatioClasses: Record<AspectRatio, string> = {
 export type ImageProps = React.ImgHTMLAttributes<HTMLImageElement> & {
 	ratio?: AspectRatio;
 	className?: string;
+	alt: string;
 };
 
 export const Image = ({ ratio, className, src, alt, ...props }: ImageProps) => {
@@ -61,6 +62,7 @@ export const Image = ({ ratio, className, src, alt, ...props }: ImageProps) => {
 					aria-label="Chargement de l'image..."
 				/>
 			)}
+			{/* biome-ignore lint/a11y/useAltText: alt is required prop, false positive */}
 			<img
 				className={clsx(
 					aspectClass,
@@ -69,7 +71,7 @@ export const Image = ({ ratio, className, src, alt, ...props }: ImageProps) => {
 					className,
 				)}
 				src={src}
-				alt={alt || "Image"}
+				alt={alt}
 				onError={handleError}
 				onLoad={handleLoad}
 				{...props}
