@@ -41,6 +41,10 @@ export const InfiniteImageGrid = () => {
 		Record<string, { width: number; height: number }>
 	>({});
 
+	// Touch handling states
+	const [lastTouchDistance, setLastTouchDistance] = useState<number>(0);
+	const [lastTouchCenter, setLastTouchCenter] = useState({ x: 0, y: 0 });
+
 	const momentumRef = useRef({ x: 0, y: 0 });
 	const lastFrameTime = useRef(performance.now());
 	const animationFrameId = useRef<number | null>(null);
@@ -87,6 +91,27 @@ export const InfiniteImageGrid = () => {
 		},
 		[imagesSizes],
 	);
+
+	// Helper functions for native touch events
+	const getTouchDistanceNative = useCallback((touches: TouchList) => {
+		if (touches.length < 2) return 0;
+		const dx = touches[0].clientX - touches[1].clientX;
+		const dy = touches[0].clientY - touches[1].clientY;
+		return Math.sqrt(dx * dx + dy * dy);
+	}, []);
+
+	const getTouchCenterNative = useCallback((touches: TouchList) => {
+		if (touches.length === 1) {
+			return { x: touches[0].clientX, y: touches[0].clientY };
+		}
+		if (touches.length === 2) {
+			return {
+				x: (touches[0].clientX + touches[1].clientX) / 2,
+				y: (touches[0].clientY + touches[1].clientY) / 2,
+			};
+		}
+		return { x: 0, y: 0 };
+	}, []);
 
 	// Calculer les cellules visibles en fonction de la position et de la taille de la fenêtre
 	const updateVisibleCells = useCallback(() => {
@@ -157,6 +182,196 @@ export const InfiniteImageGrid = () => {
 
 		animationFrameId.current = requestAnimationFrame(applyMomentum);
 	}, []);
+
+	// Add global mouse and touch event listeners
+	useEffect(() => {
+		const gridElement = gridRef.current;
+		if (!gridElement) return;
+
+		// Wheel event handler for direct DOM manipulation
+		const handleWheelDirect = (e: WheelEvent) => {
+			e.preventDefault();
+
+			// Zoom avec Ctrl+Molette
+			if (e.ctrlKey) {
+				const zoomDelta = -e.deltaY * 0.001;
+				setZoom((prev) => Math.max(0.5, Math.min(3, prev + zoomDelta)));
+				return;
+			}
+
+			// Correction du défilement horizontal
+			const deltaX = e.shiftKey ? e.deltaY : e.deltaX;
+			const deltaY = e.shiftKey ? 0 : e.deltaY;
+
+			// Mettre à jour la position en fonction du mouvement de la molette
+			setPosition((prev) => ({
+				x: prev.x - deltaX * (1 / zoom) * 0.5,
+				y: prev.y - deltaY * (1 / zoom) * 0.5,
+			}));
+
+			// Ajouter un peu de momentum pour un défilement plus fluide
+			momentumRef.current = {
+				x: momentumRef.current.x - deltaX * 0.02 * (1 / zoom),
+				y: momentumRef.current.y - deltaY * 0.02 * (1 / zoom),
+			};
+			setMomentum(momentumRef.current);
+
+			// Démarrer l'animation de momentum si elle n'est pas déjà en cours
+			if (!animationFrameId.current) {
+				lastFrameTime.current = performance.now();
+				animationFrameId.current = requestAnimationFrame(applyMomentum);
+			}
+		};
+
+		// Touch event handlers for direct DOM manipulation
+		const handleTouchStartDirect = (e: TouchEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+
+			// Arrêter l'animation de momentum
+			if (animationFrameId.current) {
+				cancelAnimationFrame(animationFrameId.current);
+				animationFrameId.current = null;
+			}
+
+			const touches = e.touches;
+
+			if (touches.length === 1) {
+				// Single touch - start dragging
+				setIsDragging(true);
+				setDragStart({ x: touches[0].clientX, y: touches[0].clientY });
+			} else if (touches.length === 2) {
+				// Multi-touch - prepare for pinch zoom
+				setIsDragging(false);
+				const distance = getTouchDistanceNative(touches);
+				const center = getTouchCenterNative(touches);
+				setLastTouchDistance(distance);
+				setLastTouchCenter(center);
+			}
+
+			// Réinitialiser le momentum
+			momentumRef.current = { x: 0, y: 0 };
+			setMomentum({ x: 0, y: 0 });
+		};
+
+		const handleTouchMoveDirect = (e: TouchEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+
+			const touches = e.touches;
+
+			if (touches.length === 1 && isDragging) {
+				// Single touch drag
+				const dx = touches[0].clientX - dragStart.x;
+				const dy = touches[0].clientY - dragStart.y;
+
+				// Calculer le momentum basé sur le mouvement
+				const now = performance.now();
+				const deltaTime = now - lastFrameTime.current;
+
+				if (deltaTime > 0) {
+					momentumRef.current = {
+						x: (dx / deltaTime) * 8,
+						y: (dy / deltaTime) * 8,
+					};
+					setMomentum(momentumRef.current);
+					lastFrameTime.current = now;
+				}
+
+				setPosition((prev) => ({
+					x: prev.x + dx,
+					y: prev.y + dy,
+				}));
+
+				setDragStart({ x: touches[0].clientX, y: touches[0].clientY });
+			} else if (touches.length === 2) {
+				// Pinch zoom
+				const distance = getTouchDistanceNative(touches);
+				const center = getTouchCenterNative(touches);
+
+				if (lastTouchDistance > 0) {
+					const scale = distance / lastTouchDistance;
+					const newZoom = Math.max(0.5, Math.min(3, zoom * scale));
+
+					// Zoom towards the pinch center
+					const zoomDelta = newZoom - zoom;
+					const deltaX =
+						(center.x - window.innerWidth / 2) * (zoomDelta / zoom);
+					const deltaY =
+						(center.y - window.innerHeight / 2) * (zoomDelta / zoom);
+
+					setPosition((prev) => ({
+						x: prev.x - deltaX,
+						y: prev.y - deltaY,
+					}));
+
+					setZoom(newZoom);
+				}
+
+				setLastTouchDistance(distance);
+				setLastTouchCenter(center);
+			}
+		};
+
+		const handleTouchEndDirect = (e: TouchEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+
+			setIsDragging(false);
+			setLastTouchDistance(0);
+
+			// Démarrer l'animation de momentum
+			if (
+				(Math.abs(momentum.x) > 0.1 || Math.abs(momentum.y) > 0.1) &&
+				!animationFrameId.current
+			) {
+				lastFrameTime.current = performance.now();
+				animationFrameId.current = requestAnimationFrame(applyMomentum);
+			}
+		};
+
+		// Add all event listeners with passive: false and capture: true
+		gridElement.addEventListener("wheel", handleWheelDirect, {
+			passive: false,
+			capture: true,
+		});
+		gridElement.addEventListener("touchstart", handleTouchStartDirect, {
+			passive: false,
+			capture: true,
+		});
+		gridElement.addEventListener("touchmove", handleTouchMoveDirect, {
+			passive: false,
+			capture: true,
+		});
+		gridElement.addEventListener("touchend", handleTouchEndDirect, {
+			passive: false,
+			capture: true,
+		});
+
+		return () => {
+			gridElement.removeEventListener("wheel", handleWheelDirect, {
+				capture: true,
+			});
+			gridElement.removeEventListener("touchstart", handleTouchStartDirect, {
+				capture: true,
+			});
+			gridElement.removeEventListener("touchmove", handleTouchMoveDirect, {
+				capture: true,
+			});
+			gridElement.removeEventListener("touchend", handleTouchEndDirect, {
+				capture: true,
+			});
+		};
+	}, [
+		isDragging,
+		dragStart,
+		getTouchDistanceNative,
+		getTouchCenterNative,
+		lastTouchDistance,
+		zoom,
+		momentum,
+		applyMomentum,
+	]);
 
 	// Mettre à jour les cellules visibles lorsque la position ou le zoom change
 	useEffect(() => {
@@ -267,44 +482,6 @@ export const InfiniteImageGrid = () => {
 			animationFrameId.current = requestAnimationFrame(applyMomentum);
 		}
 	}, [momentum, applyMomentum]);
-
-	// Optimisation: Gestion de la molette avec useCallback
-	const handleWheel = useCallback(
-		(e: React.WheelEvent) => {
-			e.preventDefault();
-
-			// Zoom avec Ctrl+Molette
-			if (e.ctrlKey) {
-				const zoomDelta = -e.deltaY * 0.001;
-				setZoom((prev) => Math.max(0.5, Math.min(3, prev + zoomDelta)));
-				return;
-			}
-
-			// Correction du défilement horizontal
-			const deltaX = e.shiftKey ? e.deltaY : e.deltaX;
-			const deltaY = e.shiftKey ? 0 : e.deltaY;
-
-			// Mettre à jour la position en fonction du mouvement de la molette
-			setPosition((prev) => ({
-				x: prev.x - deltaX * (1 / zoom) * 0.5,
-				y: prev.y - deltaY * (1 / zoom) * 0.5,
-			}));
-
-			// Ajouter un peu de momentum pour un défilement plus fluide
-			momentumRef.current = {
-				x: momentumRef.current.x - deltaX * 0.02 * (1 / zoom),
-				y: momentumRef.current.y - deltaY * 0.02 * (1 / zoom),
-			};
-			setMomentum(momentumRef.current);
-
-			// Démarrer l'animation de momentum si elle n'est pas déjà en cours
-			if (!animationFrameId.current) {
-				lastFrameTime.current = performance.now();
-				animationFrameId.current = requestAnimationFrame(applyMomentum);
-			}
-		},
-		[zoom, applyMomentum],
-	);
 
 	// Optimisation: Rendu des cellules avec useMemo
 	const renderedCells = useMemo(() => {
@@ -425,7 +602,13 @@ export const InfiniteImageGrid = () => {
 				onMouseMove={handleMouseMove}
 				onMouseUp={handleMouseUp}
 				onMouseLeave={handleMouseUp}
-				onWheel={handleWheel}
+				style={{
+					touchAction: "none",
+					userSelect: "none",
+					WebkitUserSelect: "none",
+					WebkitTouchCallout: "none",
+					WebkitTapHighlightColor: "transparent",
+				}}
 			>
 				{isLoading && (
 					<div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
