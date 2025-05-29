@@ -1,15 +1,16 @@
 import { Thumbnail } from "@/components/ui/thumbnail";
-import {
-	getAllProjectsSimple,
-	getProjectsByCategorySimple,
-} from "@/lib/queries";
+import { getAllProjects, getProjectsByCategory } from "@/lib/queries";
 import { client } from "@/lib/sanity";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Projects } from "studio/sanity.types";
+import type { Categories, Projects } from "studio/sanity.types";
 import { Sidebar } from "../sidebar";
+
+type ProjectWithCategories = Projects & {
+	expandedCategories?: Categories[];
+};
 
 interface ProjectInViewEvent extends CustomEvent {
 	detail: {
@@ -24,172 +25,159 @@ export const ThumbnailsSidebar = () => {
 	const [visibleProject, setVisibleProject] = useState<string | null>(null);
 	const sidebarRef = useRef<HTMLDivElement>(null);
 	const thumbnailRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-	const lastScrollTime = useRef<number>(0);
+	const isScrollingProgrammatically = useRef(false);
 	const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-	const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const lastVisibleProjectRef = useRef<string | null>(null);
-	const lastScrollYRef = useRef<number>(0);
+	const retryCountRef = useRef(0);
+	const maxRetries = 3;
 
 	const { data } = useQuery({
 		queryKey: ["thumbnails", { category }],
 		queryFn: async () => {
 			if (category) {
-				return client.fetch<Projects[]>(getProjectsByCategorySimple(category));
+				return client.fetch<ProjectWithCategories[]>(
+					getProjectsByCategory(category),
+				);
 			}
 
-			return client.fetch<Projects[]>(getAllProjectsSimple);
+			return client.fetch<ProjectWithCategories[]>(getAllProjects);
 		},
 	});
 
-	// Fonction pour scroller vers une position
-	const scrollToPosition = useCallback(
-		(container: HTMLElement, position: number, isHorizontal = false) => {
-			const property = isHorizontal ? "scrollLeft" : "scrollTop";
+	// Robust scroll to thumbnail function
+	const scrollToThumbnail = useCallback((projectId: string) => {
+		if (!projectId || !sidebarRef.current) return;
 
-			try {
-				container.scrollTo({
-					[isHorizontal ? "left" : "top"]: position,
-					behavior: "smooth",
-				});
-			} catch (error) {
-				// Fallback si scrollTo ne fonctionne pas
-				container[property] = position;
+		const activeThumb = thumbnailRefs.current.get(projectId);
+		if (!activeThumb) {
+			// Retry if element not found (might still be mounting)
+			if (retryCountRef.current < maxRetries) {
+				retryCountRef.current++;
+				setTimeout(() => scrollToThumbnail(projectId), 100);
 			}
-		},
-		[],
-	);
-
-	// Fonction pour scroller vers la thumbnail active
-	const scrollToThumbnail = useCallback(() => {
-		if (!visibleProject || !sidebarRef.current || !data?.length) return;
-
-		const activeThumb = thumbnailRefs.current.get(visibleProject);
-		if (!activeThumb || !sidebarRef.current) return;
-
-		// Vérifier que l'élément est bien dans le DOM et a des dimensions
-		const rect = activeThumb.getBoundingClientRect();
-		if (rect.width === 0 || rect.height === 0) {
-			// Réessayer après un délai plus court
-			if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-			scrollTimeoutRef.current = setTimeout(scrollToThumbnail, 50);
 			return;
 		}
 
-		const now = Date.now();
-		if (now - lastScrollTime.current < 100) return;
+		// Reset retry count on successful find
+		retryCountRef.current = 0;
 
-		if (window.innerWidth >= 768) {
-			const sidebarRect = sidebarRef.current.getBoundingClientRect();
-			const thumbRect = activeThumb.getBoundingClientRect();
-
-			const isThumbVisible =
-				thumbRect.top >= sidebarRect.top - 10 &&
-				thumbRect.bottom <= sidebarRect.bottom + 10;
-
-			if (!isThumbVisible) {
-				const scrollTop =
-					thumbRect.top +
-					sidebarRef.current.scrollTop -
-					sidebarRect.top -
-					sidebarRect.height / 2 +
-					thumbRect.height / 2;
-
-				scrollToPosition(sidebarRef.current, scrollTop);
-				lastScrollTime.current = now;
+		// Check if element has dimensions (is actually rendered)
+		const rect = activeThumb.getBoundingClientRect();
+		if (rect.width === 0 || rect.height === 0) {
+			// Element not yet rendered, retry
+			if (retryCountRef.current < maxRetries) {
+				retryCountRef.current++;
+				setTimeout(() => scrollToThumbnail(projectId), 100);
 			}
-		} else {
-			const sidebarRect = sidebarRef.current.getBoundingClientRect();
-			const thumbRect = activeThumb.getBoundingClientRect();
-
-			const isThumbVisible =
-				thumbRect.left >= sidebarRect.left - 10 &&
-				thumbRect.right <= sidebarRect.right + 10;
-
-			if (!isThumbVisible) {
-				const scrollLeft =
-					thumbRect.left +
-					sidebarRef.current.scrollLeft -
-					sidebarRect.left -
-					sidebarRect.width / 2 +
-					thumbRect.width / 2;
-
-				scrollToPosition(sidebarRef.current, scrollLeft, true);
-				lastScrollTime.current = now;
-			}
-		}
-	}, [visibleProject, data, scrollToPosition]);
-
-	// Fonction debounced pour mettre à jour le projet visible
-	const debouncedSetVisibleProject = useCallback((projectId: string) => {
-		if (lastVisibleProjectRef.current === projectId) return;
-
-		if (debounceTimeoutRef.current) {
-			clearTimeout(debounceTimeoutRef.current);
+			return;
 		}
 
-		// Délai plus court pour les scrolls rapides
-		const currentScrollY = window.scrollY;
-		const scrollDelta = Math.abs(currentScrollY - lastScrollYRef.current);
-		const delay = scrollDelta > 500 ? 50 : 150;
-		lastScrollYRef.current = currentScrollY;
+		isScrollingProgrammatically.current = true;
 
-		debounceTimeoutRef.current = setTimeout(() => {
-			lastVisibleProjectRef.current = projectId;
-			setVisibleProject(projectId);
-		}, delay);
+		try {
+			// Use the most compatible scroll method
+			activeThumb.scrollIntoView({
+				behavior: "smooth",
+				block: "center",
+				inline: "center",
+			});
+		} catch (error) {
+			// Fallback for browsers that don't support scrollIntoView options
+			try {
+				activeThumb.scrollIntoView();
+			} catch (fallbackError) {
+				console.warn("[THUMBNAILS] Scroll failed:", fallbackError);
+			}
+		}
+
+		// Reset scrolling flag after animation
+		setTimeout(() => {
+			isScrollingProgrammatically.current = false;
+		}, 600); // Reduced timeout for better responsiveness
 	}, []);
 
+	// Debounced function to update visible project
+	const debouncedSetVisibleProject = useCallback(
+		(projectId: string) => {
+			if (lastVisibleProjectRef.current === projectId) return;
+
+			lastVisibleProjectRef.current = projectId;
+			setVisibleProject(projectId);
+
+			// Clear any existing timeout
+			if (scrollTimeoutRef.current) {
+				clearTimeout(scrollTimeoutRef.current);
+			}
+
+			// Scroll to thumbnail with a small delay to ensure state update
+			scrollTimeoutRef.current = setTimeout(() => {
+				scrollToThumbnail(projectId);
+			}, 100); // Reduced delay for better responsiveness
+		},
+		[scrollToThumbnail],
+	);
+
+	// Handle project changes from URL
 	useEffect(() => {
 		if (project) {
-			setVisibleProject(project);
-			lastVisibleProjectRef.current = project;
+			debouncedSetVisibleProject(project);
 		}
+	}, [project, debouncedSetVisibleProject]);
 
-		let isScrolling = false;
-		let scrollTimeout: NodeJS.Timeout;
+	// Initialize first project when data loads
+	useEffect(() => {
+		if (!visibleProject && data && data.length > 0) {
+			const firstProject = data[0];
+			const firstProjectId = firstProject.slug?.current || firstProject._id;
+			if (firstProjectId) {
+				debouncedSetVisibleProject(firstProjectId);
+			}
+		}
+	}, [data, visibleProject, debouncedSetVisibleProject]);
 
+	// Handle project visibility events
+	useEffect(() => {
 		const handleVisibleProject = (e: ProjectInViewEvent) => {
 			const { projectId, isActive, intersectionRatio } = e.detail;
 
-			// Ignorer les événements pendant un scroll rapide
-			if (isScrolling) return;
-
-			// Mettre à jour le projet visible si il est actif ou a une bonne visibilité
+			// Update visible project if it's active or highly visible
 			if (isActive || intersectionRatio > 0.6) {
-				debouncedSetVisibleProject(projectId);
+				// Only debounce if we're not currently scrolling programmatically
+				if (!isScrollingProgrammatically.current) {
+					debouncedSetVisibleProject(projectId);
+				} else {
+					// If we're scrolling programmatically, just update the state without scrolling
+					lastVisibleProjectRef.current = projectId;
+					setVisibleProject(projectId);
+				}
 			}
 		};
 
-		// Fonction pour vérifier si on est en haut de page et sélectionner le premier projet
+		// Handle page scroll to select first project when at top
 		const handleScroll = () => {
-			isScrolling = true;
-
-			if (scrollTimeout) {
-				clearTimeout(scrollTimeout);
-			}
-
-			scrollTimeout = setTimeout(() => {
-				isScrolling = false;
-
-				// Vérifier si on est en haut de page
-				if (window.scrollY < 50 && data && data.length > 0) {
-					const firstProject = data[0];
-					const firstProjectId = firstProject.slug?.current || firstProject._id;
-					if (
-						firstProjectId &&
-						lastVisibleProjectRef.current !== firstProjectId
-					) {
+			// Check if we're at top of page and select first project
+			if (window.scrollY < 100 && data && data.length > 0) {
+				const firstProject = data[0];
+				const firstProjectId = firstProject.slug?.current || firstProject._id;
+				if (
+					firstProjectId &&
+					lastVisibleProjectRef.current !== firstProjectId
+				) {
+					if (!isScrollingProgrammatically.current) {
 						debouncedSetVisibleProject(firstProjectId);
+					} else {
+						// If we're scrolling programmatically, just update the state
+						lastVisibleProjectRef.current = firstProjectId;
+						setVisibleProject(firstProjectId);
 					}
 				}
-			}, 100);
+			}
 		};
 
 		window.addEventListener(
 			"projectInView",
 			handleVisibleProject as EventListener,
 		);
-
 		window.addEventListener("scroll", handleScroll, { passive: true });
 
 		return () => {
@@ -198,61 +186,18 @@ export const ThumbnailsSidebar = () => {
 				handleVisibleProject as EventListener,
 			);
 			window.removeEventListener("scroll", handleScroll);
-			if (debounceTimeoutRef.current) {
-				clearTimeout(debounceTimeoutRef.current);
-			}
-			if (scrollTimeout) {
-				clearTimeout(scrollTimeout);
-			}
 		};
-	}, [project, debouncedSetVisibleProject, data]);
+	}, [debouncedSetVisibleProject, data]);
 
-	// Utiliser requestAnimationFrame pour un timing plus fiable
-	useEffect(() => {
-		if (!visibleProject || !data?.length) return;
-
-		// Nettoyer le timeout précédent
-		if (scrollTimeoutRef.current) {
-			clearTimeout(scrollTimeoutRef.current);
-		}
-
-		// Fonction de scroll simplifiée
-		const doScroll = () => {
-			const activeThumb = thumbnailRefs.current.get(visibleProject);
-			if (!activeThumb || !sidebarRef.current) {
-				return;
-			}
-
-			try {
-				activeThumb.scrollIntoView({
-					behavior: "smooth",
-					block: "center",
-					inline: "center",
-				});
-			} catch (error) {
-				console.warn("[THUMBNAILS] Scroll failed:", error);
-			}
-		};
-
-		// Délai court pour laisser le temps au DOM de se mettre à jour
-		scrollTimeoutRef.current = setTimeout(doScroll, 100);
-
-		return () => {
-			if (scrollTimeoutRef.current) {
-				clearTimeout(scrollTimeoutRef.current);
-			}
-		};
-	}, [visibleProject, data]);
-
+	// Cleanup on unmount or data change
 	useEffect(() => {
 		thumbnailRefs.current.clear();
+		lastVisibleProjectRef.current = null;
+		retryCountRef.current = 0;
 
 		return () => {
 			if (scrollTimeoutRef.current) {
 				clearTimeout(scrollTimeoutRef.current);
-			}
-			if (debounceTimeoutRef.current) {
-				clearTimeout(debounceTimeoutRef.current);
 			}
 		};
 	}, [data]);
@@ -275,7 +220,7 @@ export const ThumbnailsSidebar = () => {
 							opacity: visibleProject === projectId ? 1 : 0.5,
 						}}
 						transition={{
-							duration: 0.4,
+							duration: 0.3,
 							ease: "easeOut",
 							type: "tween",
 						}}

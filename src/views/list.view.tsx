@@ -235,7 +235,7 @@ export const ListView = () => {
 			animate={{ opacity: 1 }}
 			transition={{ duration: 0.3 }}
 		>
-			{collection.map((item, index) => (
+			{collection.map((item) => (
 				<button
 					key={item.id}
 					type="button"
