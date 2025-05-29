@@ -22,7 +22,7 @@ const imageWrapperVariants = cva("flex items-center justify-center", {
 		size: {
 			small: "h-[103.60px] w-[83px] md:h-[260px] md:w-52",
 			medium: "h-[207px] w-[166px] md:h-[414.40px] md:w-[332px]",
-			large: "min-h-none w-screen md:h-[120vh] md:min-h-[120vh]",
+			large: "min-h-none w-screen md:h-[140vh] md:min-h-[140vh]",
 		},
 	},
 	defaultVariants: {
