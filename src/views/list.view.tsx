@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import { type VariantProps, cva } from "class-variance-authority";
 import clsx from "clsx";
+import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useMemo, useRef } from "react";
 import type { Lab } from "studio/sanity.types";
 
@@ -16,37 +17,31 @@ interface CollectionItemType {
 	altText?: string;
 }
 
-const imageWrapperVariants = cva(
-	"flex items-center justify-center transition-all duration-300 ease-in-out",
-	{
-		variants: {
-			size: {
-				small: "h-[103.60px] w-[83px] md:h-[260px] md:w-52",
-				medium: "h-[207px] w-[166px] md:h-[414.40px] md:w-[332px]",
-				large: "max-h-screen min-h-none w-screen md:max-h-none md:min-h-screen",
-			},
-		},
-		defaultVariants: {
-			size: "small",
+const imageWrapperVariants = cva("flex items-center justify-center", {
+	variants: {
+		size: {
+			small: "h-[103.60px] w-[83px] md:h-[260px] md:w-52",
+			medium: "h-[207px] w-[166px] md:h-[414.40px] md:w-[332px]",
+			large: "max-h-screen min-h-none w-screen md:max-h-none md:min-h-screen",
 		},
 	},
-);
+	defaultVariants: {
+		size: "small",
+	},
+});
 
-const imageVariants = cva(
-	"object-cover transition-all duration-300 ease-in-out",
-	{
-		variants: {
-			size: {
-				small: "h-full w-full",
-				medium: "h-full w-full",
-				large: "min-h-screen min-w-screen object-cover",
-			},
-		},
-		defaultVariants: {
-			size: "small",
+const imageVariants = cva("object-cover", {
+	variants: {
+		size: {
+			small: "h-full w-full",
+			medium: "h-full w-full",
+			large: "min-h-screen min-w-screen object-cover",
 		},
 	},
-);
+	defaultVariants: {
+		size: "small",
+	},
+});
 
 interface SizedImageDisplayProps
 	extends VariantProps<typeof imageWrapperVariants> {
@@ -66,22 +61,48 @@ const SizedImageDisplay = ({
 	const imageRatio: ImageProps["ratio"] = size === "small" ? "4/5" : undefined;
 
 	return (
-		<div
+		<motion.div
 			id={`image-wrapper-${String(id)}`}
 			className={clsx(
 				imageWrapperVariants({ size }),
-				"transition-all duration-300 ease-in-out",
 				isSelected ? "z-50" : "z-0",
 			)}
+			layout
+			initial={{ opacity: 0, scale: 0.9 }}
+			animate={{
+				opacity: 1,
+				scale: 1,
+				zIndex: isSelected ? 50 : 0,
+			}}
+			transition={{
+				type: "spring",
+				stiffness: 400,
+				damping: 35,
+				layout: {
+					type: "spring",
+					stiffness: 500,
+					damping: 40,
+				},
+			}}
 		>
-			<Image
-				id={`image-${String(id)}`}
-				className={imageVariants({ size })}
-				src={item.image}
-				alt={item.altText || `Image ${item.id}`}
-				ratio={imageRatio}
-			/>
-		</div>
+			<motion.div
+				layout
+				className="h-full w-full"
+				transition={{
+					type: "spring",
+					stiffness: 500,
+					damping: 40,
+				}}
+			>
+				<Image
+					id={`image-${String(id)}`}
+					className={imageVariants({ size })}
+					src={item.image}
+					alt={item.altText || `Image ${item.id}`}
+					ratio={imageRatio}
+				/>
+			</motion.div>
+		</motion.div>
 	);
 };
 
@@ -141,104 +162,29 @@ export const ListView = () => {
 				? "expanded"
 				: "fullscreen";
 
-	const scrollToImageImmediate = useCallback(
-		(imageId: string | number, sizeState: number) => {
+	const scrollToImageCenter = useCallback((imageId: string | number) => {
+		// Attendre que les animations layout soient terminées
+		setTimeout(() => {
 			const element = document.getElementById(`image-wrapper-${imageId}`);
-
-			if (sizeState === 0) {
-				// Retour à small - restaurer position originale
-				const originalY = scrollStateRef.current?.originalScrollY || 0;
-				window.scrollTo({
-					top: originalY,
-					behavior: "instant",
-				});
-			} else if (sizeState === 1) {
-				element?.scrollIntoView({
-					behavior: "instant",
-					block: "start",
+			if (element) {
+				element.scrollIntoView({
+					behavior: "smooth",
+					block: "center",
 					inline: "nearest",
 				});
-			} else if (sizeState === 2) {
-				const rect = element?.getBoundingClientRect();
-				if (!rect) return;
-
-				const currentScrollY = window.scrollY;
-
-				// Informations sur la position de l'image dans la liste
-				const imageIndex = collection.findIndex((item) => item.id === imageId);
-				const totalImages = collection.length;
-				const isLastTwoImages = imageIndex >= totalImages - 2;
-
-				// Calculer les dimensions du document
-				const documentHeight = Math.max(
-					document.body.scrollHeight,
-					document.documentElement.scrollHeight,
-				);
-				const windowHeight = window.innerHeight;
-				const maxScroll = Math.max(0, documentHeight - windowHeight);
-
-				// Calculer la position cible
-				let targetScroll = currentScrollY + rect.top;
-
-				// Pour les dernières images, utiliser une approche différente
-				if (isLastTwoImages) {
-					// Essayer de centrer l'image dans la vue
-					const centerOffset = (windowHeight - rect.height) / 2;
-					targetScroll = currentScrollY + rect.top - centerOffset;
-
-					// Si ça dépasse encore, utiliser scrollIntoView
-					if (targetScroll > maxScroll || targetScroll < 0) {
-						element?.scrollIntoView({
-							behavior: "instant",
-							block: "center",
-							inline: "nearest",
-						});
-
-						return;
-					}
-				}
-
-				// Limiter le scroll aux bornes du document
-				targetScroll = Math.max(0, Math.min(targetScroll, maxScroll));
-				window.scrollTo({
-					top: targetScroll,
-					behavior: "instant",
-				});
-
-				// Vérifier le résultat final
-				setTimeout(() => {}, 10);
 			}
-		},
-		[],
-	);
+		}, 100);
+	}, []);
 
 	const handleImageClick = useCallback(
-		(e: React.MouseEvent, clickedId: string | number) => {
+		(e: React.MouseEvent<HTMLButtonElement>, clickedId: string | number) => {
 			e.preventDefault();
 			e.stopPropagation();
 
 			const currentScrollY = window.scrollY;
 
-			if (selectedId === clickedId) {
-				const nextState = (currentGlobalSizeState + 1) % 3;
-
-				if (nextState === 0) {
-					listStore.setState((prev) => ({
-						...prev,
-						currentGlobalSizeState: 0,
-						selectedId: null,
-					}));
-				} else {
-					listStore.setState((prev) => ({
-						...prev,
-						currentGlobalSizeState: nextState,
-					}));
-				}
-
-				setTimeout(() => {
-					scrollToImageImmediate(clickedId, nextState);
-				}, 0);
-			} else {
+			// Étape 1: Si aucune image sélectionnée → passe au zoom moyen sur l'image cliquée
+			if (currentGlobalSizeState === 0) {
 				scrollStateRef.current = {
 					imageId: clickedId,
 					originalScrollY: currentScrollY,
@@ -250,31 +196,91 @@ export const ListView = () => {
 					selectedId: clickedId,
 				}));
 
-				setTimeout(() => {
-					scrollToImageImmediate(clickedId, 1);
-				}, 0);
+				scrollToImageCenter(clickedId);
+				return;
+			}
+
+			// Étape 2: Si en zoom moyen → passe au fullscreen sur l'image cliquée
+			if (currentGlobalSizeState === 1) {
+				listStore.setState((prev) => ({
+					...prev,
+					currentGlobalSizeState: 2,
+					selectedId: clickedId, // Important: on sélectionne l'image CLIQUÉE
+				}));
+
+				scrollToImageCenter(clickedId);
+				return;
+			}
+
+			// Étape 3: Si en fullscreen → retour au zoom minimal
+			if (currentGlobalSizeState === 2) {
+				listStore.setState((prev) => ({
+					...prev,
+					currentGlobalSizeState: 0,
+					selectedId: null,
+				}));
+
+				// Retour à la position originale si elle existe
+				if (scrollStateRef.current?.originalScrollY !== undefined) {
+					setTimeout(() => {
+						window.scrollTo({
+							top: scrollStateRef.current?.originalScrollY || 0,
+							behavior: "smooth",
+						});
+					}, 100);
+				}
+				return;
 			}
 		},
-		[selectedId, currentGlobalSizeState, scrollToImageImmediate],
+		[currentGlobalSizeState, scrollToImageCenter],
 	);
 
 	return (
-		<div ref={containerRef} className={listContainerVariants({ spacing })}>
-			{collection.map((item) => (
-				<button
-					key={item.id}
-					type="button"
-					onClick={(e) => handleImageClick(e, item.id)}
-					className="m-0 cursor-pointer appearance-none border-0 bg-transparent p-0"
-				>
-					<SizedImageDisplay
-						id={item.id}
-						item={item}
-						sizeState={currentGlobalSizeState}
-						isSelected={selectedId === item.id}
-					/>
-				</button>
-			))}
-		</div>
+		<motion.div
+			ref={containerRef}
+			className={listContainerVariants({ spacing })}
+			layout
+			initial={{ opacity: 0 }}
+			animate={{ opacity: 1 }}
+			transition={{
+				layout: {
+					type: "spring",
+					stiffness: 500,
+					damping: 40,
+				},
+			}}
+		>
+			<AnimatePresence>
+				{collection.map((item, index) => (
+					<motion.button
+						key={item.id}
+						type="button"
+						onClick={(e) => handleImageClick(e, item.id)}
+						className="m-0 cursor-pointer appearance-none border-0 bg-transparent p-0"
+						layout
+						initial={{ opacity: 0, y: 10 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{
+							type: "spring",
+							stiffness: 400,
+							damping: 35,
+							delay: index * 0.02,
+							layout: {
+								type: "spring",
+								stiffness: 500,
+								damping: 40,
+							},
+						}}
+					>
+						<SizedImageDisplay
+							id={item.id}
+							item={item}
+							sizeState={currentGlobalSizeState}
+							isSelected={selectedId === item.id}
+						/>
+					</motion.button>
+				))}
+			</AnimatePresence>
+		</motion.div>
 	);
 };
