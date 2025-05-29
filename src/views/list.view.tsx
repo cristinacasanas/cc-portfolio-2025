@@ -7,8 +7,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import { type VariantProps, cva } from "class-variance-authority";
 import clsx from "clsx";
-import { AnimatePresence, motion } from "framer-motion";
-import { useCallback, useMemo, useRef } from "react";
+import { motion } from "framer-motion";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { Lab } from "studio/sanity.types";
 
 interface CollectionItemType {
@@ -22,7 +22,7 @@ const imageWrapperVariants = cva("flex items-center justify-center", {
 		size: {
 			small: "h-[103.60px] w-[83px] md:h-[260px] md:w-52",
 			medium: "h-[207px] w-[166px] md:h-[414.40px] md:w-[332px]",
-			large: "max-h-screen min-h-none w-screen md:max-h-none md:min-h-screen",
+			large: "min-h-none w-screen md:h-[120vh] md:min-h-[120vh]",
 		},
 	},
 	defaultVariants: {
@@ -61,48 +61,25 @@ const SizedImageDisplay = ({
 	const imageRatio: ImageProps["ratio"] = size === "small" ? "4/5" : undefined;
 
 	return (
-		<motion.div
+		<div
 			id={`image-wrapper-${String(id)}`}
 			className={clsx(
 				imageWrapperVariants({ size }),
 				isSelected ? "z-50" : "z-0",
+				"transition-all duration-500 ease-out",
 			)}
-			layout
-			initial={{ opacity: 0, scale: 0.9 }}
-			animate={{
-				opacity: 1,
-				scale: 1,
-				zIndex: isSelected ? 50 : 0,
-			}}
-			transition={{
-				type: "spring",
-				stiffness: 400,
-				damping: 35,
-				layout: {
-					type: "spring",
-					stiffness: 500,
-					damping: 40,
-				},
-			}}
 		>
-			<motion.div
-				layout
-				className="h-full w-full"
-				transition={{
-					type: "spring",
-					stiffness: 500,
-					damping: 40,
-				}}
-			>
-				<Image
-					id={`image-${String(id)}`}
-					className={imageVariants({ size })}
-					src={item.image}
-					alt={item.altText || `Image ${item.id}`}
-					ratio={imageRatio}
-				/>
-			</motion.div>
-		</motion.div>
+			<Image
+				id={`image-${String(id)}`}
+				className={clsx(
+					imageVariants({ size }),
+					"transition-all duration-500 ease-out",
+				)}
+				src={item.image}
+				alt={item.altText || `Image ${item.id}`}
+				ratio={imageRatio}
+			/>
+		</div>
 	);
 };
 
@@ -131,6 +108,7 @@ export const ListView = () => {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const { currentGlobalSizeState, selectedId } = useStore(listStore);
 	const scrollStateRef = useRef<ScrollState | null>(null);
+	const pendingScrollRef = useRef<string | number | null>(null);
 
 	const { data } = useQuery({
 		queryKey: ["lab"],
@@ -162,19 +140,32 @@ export const ListView = () => {
 				? "expanded"
 				: "fullscreen";
 
-	const scrollToImageCenter = useCallback((imageId: string | number) => {
-		// Attendre que les animations layout soient terminées
-		setTimeout(() => {
+	// Effect pour gérer le scroll quand l'état change
+	useEffect(() => {
+		if (
+			pendingScrollRef.current &&
+			(currentGlobalSizeState === 1 || currentGlobalSizeState === 2)
+		) {
+			const imageId = pendingScrollRef.current;
+			pendingScrollRef.current = null;
+
+			// Scroll immédiatement sans attendre
 			const element = document.getElementById(`image-wrapper-${imageId}`);
 			if (element) {
 				element.scrollIntoView({
-					behavior: "smooth",
-					block: "center",
+					behavior: "instant",
+					block: currentGlobalSizeState === 2 ? "start" : "center",
 					inline: "nearest",
 				});
+
+				// Changer selectedId immédiatement aussi
+				listStore.setState((prev) => ({
+					...prev,
+					selectedId: imageId,
+				}));
 			}
-		}, 100);
-	}, []);
+		}
+	}, [currentGlobalSizeState]);
 
 	const handleImageClick = useCallback(
 		(e: React.MouseEvent<HTMLButtonElement>, clickedId: string | number) => {
@@ -183,104 +174,82 @@ export const ListView = () => {
 
 			const currentScrollY = window.scrollY;
 
-			// Étape 1: Si aucune image sélectionnée → passe au zoom moyen sur l'image cliquée
+			// Étape 1: Aucune image sélectionnée → zoom moyen sur l'image cliquée
 			if (currentGlobalSizeState === 0) {
 				scrollStateRef.current = {
 					imageId: clickedId,
 					originalScrollY: currentScrollY,
 				};
 
+				pendingScrollRef.current = clickedId;
+
 				listStore.setState((prev) => ({
 					...prev,
 					currentGlobalSizeState: 1,
-					selectedId: clickedId,
+					selectedId: clickedId, // On peut le faire immédiatement pour l'étape 1
 				}));
-
-				scrollToImageCenter(clickedId);
 				return;
 			}
 
-			// Étape 2: Si en zoom moyen → passe au fullscreen sur l'image cliquée
+			// Étape 2: Zoom moyen → fullscreen sur l'image cliquée
 			if (currentGlobalSizeState === 1) {
+				pendingScrollRef.current = clickedId;
+
 				listStore.setState((prev) => ({
 					...prev,
 					currentGlobalSizeState: 2,
-					selectedId: clickedId, // Important: on sélectionne l'image CLIQUÉE
+					// On ne change pas selectedId ici, ça sera fait dans l'useEffect après le scroll
 				}));
-
-				scrollToImageCenter(clickedId);
 				return;
 			}
 
-			// Étape 3: Si en fullscreen → retour au zoom minimal
+			// Étape 3: Fullscreen → retour au zoom minimal
 			if (currentGlobalSizeState === 2) {
+				pendingScrollRef.current = null;
+
 				listStore.setState((prev) => ({
 					...prev,
 					currentGlobalSizeState: 0,
 					selectedId: null,
 				}));
 
-				// Retour à la position originale si elle existe
+				// Retour à la position originale immédiatement
 				if (scrollStateRef.current?.originalScrollY !== undefined) {
-					setTimeout(() => {
-						window.scrollTo({
-							top: scrollStateRef.current?.originalScrollY || 0,
-							behavior: "smooth",
-						});
-					}, 100);
+					window.scrollTo({
+						top: scrollStateRef.current?.originalScrollY || 0,
+						behavior: "instant",
+					});
+					scrollStateRef.current = null;
 				}
 				return;
 			}
 		},
-		[currentGlobalSizeState, scrollToImageCenter],
+		[currentGlobalSizeState],
 	);
 
 	return (
 		<motion.div
 			ref={containerRef}
 			className={listContainerVariants({ spacing })}
-			layout
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
-			transition={{
-				layout: {
-					type: "spring",
-					stiffness: 500,
-					damping: 40,
-				},
-			}}
+			transition={{ duration: 0.3 }}
 		>
-			<AnimatePresence>
-				{collection.map((item, index) => (
-					<motion.button
-						key={item.id}
-						type="button"
-						onClick={(e) => handleImageClick(e, item.id)}
-						className="m-0 cursor-pointer appearance-none border-0 bg-transparent p-0"
-						layout
-						initial={{ opacity: 0, y: 10 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{
-							type: "spring",
-							stiffness: 400,
-							damping: 35,
-							delay: index * 0.02,
-							layout: {
-								type: "spring",
-								stiffness: 500,
-								damping: 40,
-							},
-						}}
-					>
-						<SizedImageDisplay
-							id={item.id}
-							item={item}
-							sizeState={currentGlobalSizeState}
-							isSelected={selectedId === item.id}
-						/>
-					</motion.button>
-				))}
-			</AnimatePresence>
+			{collection.map((item, index) => (
+				<button
+					key={item.id}
+					type="button"
+					onClick={(e) => handleImageClick(e, item.id)}
+					className="m-0 cursor-pointer appearance-none border-0 bg-transparent p-0"
+				>
+					<SizedImageDisplay
+						id={item.id}
+						item={item}
+						sizeState={currentGlobalSizeState}
+						isSelected={selectedId === item.id}
+					/>
+				</button>
+			))}
 		</motion.div>
 	);
 };
