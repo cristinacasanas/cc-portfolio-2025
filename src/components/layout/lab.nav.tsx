@@ -17,7 +17,7 @@ export const LabNav = () => {
 					className="px-3 py-2"
 					aria-current={view === "list" ? "page" : undefined}
 				>
-					<List />
+					<List isActive={view === "list"} />
 				</Link>
 				<Link
 					to="/lab"
@@ -25,7 +25,7 @@ export const LabNav = () => {
 					className="px-3 py-2"
 					aria-current={view === "grid" ? "page" : undefined}
 				>
-					<Grid />
+					<Grid isActive={view === "grid"} />
 				</Link>
 				<Link
 					to="/lab"
@@ -33,7 +33,7 @@ export const LabNav = () => {
 					className="px-3 py-2"
 					aria-current={view === "canvas" ? "page" : undefined}
 				>
-					<Drag />
+					<Drag isActive={view === "canvas"} />
 				</Link>
 			</div>
 		</nav>
