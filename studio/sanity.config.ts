@@ -25,18 +25,16 @@ export default defineConfig({
               .title('About')
               .icon(Folder)
               .child(
-                S.documentList()
+                S.documentTypeList('about')
                   .title('About')
-                  .filter('_type == "about"')
               ),
             orderableDocumentListDeskItem({type: 'network', S, context, title: 'Network', icon: Folder}),
             S.listItem()
               .title('Lab')
               .icon(Folder)
               .child(
-                S.documentList()
+                S.documentTypeList('lab')
                   .title('Lab')
-                  .filter('_type == "lab"')
               ),
           ])
       },
