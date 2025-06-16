@@ -2,6 +2,7 @@ import { getAllProjects, getProjectsByCategory } from "@/lib/queries";
 import { client } from "@/lib/sanity";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
+import clsx from "clsx";
 import { motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Categories, Projects } from "studio/sanity.types";
@@ -325,6 +326,7 @@ export const MobileThumbnails = () => {
 				});
 			} catch (error) {
 				isScrollingProgrammatically.current = false;
+				console.error(error);
 				return;
 			}
 
@@ -791,6 +793,7 @@ export const MobileThumbnails = () => {
 	// Enhanced project opacity calculation with better contrast
 	const getProjectOpacity = useCallback(
 		(projectId: string, index: number) => {
+			console.log("getProjectOpacity", projectId, index);
 			if (!projectId) return 0;
 
 			const isVisible = projectId === visibleProject;
@@ -816,7 +819,6 @@ export const MobileThumbnails = () => {
 			const isActive = projectId === visibleProject;
 			const isFirst = index === 0;
 			const isSecond = index === 1;
-			const isLast = index === sortedProjects.length - 1;
 			const isFirstOrSecond = isFirst || isSecond;
 
 			// Use same animation values for all items, no special handling for first two
@@ -843,9 +845,7 @@ export const MobileThumbnails = () => {
 						ease: "easeOut",
 						opacity: { duration: isFirstOrSecond ? 0.1 : 0.15 },
 					}}
-					className={`h-full w-full ${isActive ? "z-10" : "z-0"} ${
-						isFirstOrSecond ? "pr-0.5" : ""
-					} will-change-transform`}
+					className={clsx("h-full w-full", isActive ? "z-10" : "z-0")}
 					onClick={() => {
 						if (projectId) {
 							resetScrollState();
@@ -869,7 +869,7 @@ export const MobileThumbnails = () => {
 	return (
 		<div
 			ref={containerRef}
-			className="relative mt-2 flex h-auto w-screen items-start gap-1.5 self-stretch overflow-x-auto pr-3 pb-1 md:hidden scroll-smooth will-change-scroll"
+			className="relative mt-2 flex h-auto w-screen items-start gap-1.5 self-stretch overflow-x-auto scroll-smooth pr-3 pb-1 will-change-scroll md:hidden"
 		>
 			{sortedProjects.map(renderThumbnail).filter(Boolean)}
 		</div>
