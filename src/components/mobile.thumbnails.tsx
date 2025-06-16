@@ -1,14 +1,16 @@
-import {
-	getAllProjectsSimple,
-	getProjectsByCategorySimple,
-} from "@/lib/queries";
+import { getAllProjects, getProjectsByCategory } from "@/lib/queries";
 import { client } from "@/lib/sanity";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
+import clsx from "clsx";
 import { motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Projects } from "studio/sanity.types";
+import type { Categories, Projects } from "studio/sanity.types";
 import { Thumbnail } from "./ui/thumbnail";
+
+type ProjectWithCategories = Projects & {
+	expandedCategories?: Categories[];
+};
 
 interface ProjectInViewEvent extends CustomEvent {
 	detail: {
@@ -27,200 +29,552 @@ export const MobileThumbnails = () => {
 	const [visibleProject, setVisibleProject] = useState<string | null>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const thumbnailRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-	const scrollingRef = useRef(false);
-	const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-	const activeProjectsRef = useRef<Set<string>>(new Set());
-	const enteringProjectsRef = useRef<Set<string>>(new Set());
-	const isMountedRef = useRef(true);
+	const isScrollingProgrammatically = useRef(false);
+	const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const lastVisibleProjectRef = useRef<string | null>(null);
-	const isInitializedRef = useRef(false);
+	const retryCountRef = useRef(0);
+	const maxRetries = 5;
+	const lastUpdateTimeRef = useRef(0);
+	const updateCooldownMs = 400;
+	const resizeObserverRef = useRef<ResizeObserver | null>(null);
+	const stabilityThresholdRef = useRef(0);
+	const stabilityThreshold = 0.3;
+	const lastScrollTimeRef = useRef(0);
+	const scrollEndTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const isUserScrollingRef = useRef(false);
+	const userScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const scrollStabilityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const lastScrollDirectionRef = useRef<"left" | "right" | null>(null);
+	const lastScrollPositionRef = useRef(0);
+	const scrollStableRef = useRef(true);
+	const selectionLockRef = useRef(false);
+	const isAtBoundaryRef = useRef<"start" | "near-start" | "end" | null>(null);
 
-	// Debounce visible project changes to prevent flickering
-	const debouncedSetVisibleProject = useCallback((projectId: string) => {
-		if (lastVisibleProjectRef.current === projectId) return;
-		lastVisibleProjectRef.current = projectId;
-		setVisibleProject(projectId);
+	const { data } = useQuery({
+		queryKey: ["thumbnails", { category }],
+		queryFn: async () => {
+			if (category) {
+				return client.fetch<ProjectWithCategories[]>(
+					getProjectsByCategory(category),
+				);
+			}
+			return client.fetch<ProjectWithCategories[]>(getAllProjects);
+		},
+	});
+
+	// Memoize projects processing
+	const sortedProjects = useMemo(() => {
+		if (!data) return [];
+		return [...data];
+	}, [data]);
+
+	// Get boundary project IDs with more detailed near-boundary info
+	const boundaryIds = useMemo(() => {
+		if (sortedProjects.length < 2) {
+			return {
+				first:
+					sortedProjects[0]?.slug?.current || sortedProjects[0]?._id || null,
+				second: null,
+				last:
+					sortedProjects[0]?.slug?.current || sortedProjects[0]?._id || null,
+			};
+		}
+
+		const firstProject = sortedProjects[0];
+		const secondProject = sortedProjects[1];
+		const lastProject = sortedProjects[sortedProjects.length - 1];
+
+		return {
+			first: firstProject?.slug?.current || firstProject?._id || null,
+			second: secondProject?.slug?.current || secondProject?._id || null,
+			last: lastProject?.slug?.current || lastProject?._id || null,
+		};
+	}, [sortedProjects]);
+
+	// Reset all scroll and selection state
+	const resetScrollState = useCallback(() => {
+		isScrollingProgrammatically.current = false;
+		isUserScrollingRef.current = false;
+		lastScrollDirectionRef.current = null;
+		stabilityThresholdRef.current = 0;
+		scrollStableRef.current = true;
+		selectionLockRef.current = false;
+		isAtBoundaryRef.current = null;
+
+		// Clear all timeouts
+		if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+		if (scrollEndTimeoutRef.current) clearTimeout(scrollEndTimeoutRef.current);
+		if (userScrollTimeoutRef.current)
+			clearTimeout(userScrollTimeoutRef.current);
+		if (scrollStabilityTimeoutRef.current)
+			clearTimeout(scrollStabilityTimeoutRef.current);
 	}, []);
 
-	useEffect(() => {
-		if (visibleProject && containerRef.current && !scrollingRef.current) {
-			const activeThumb = thumbnailRefs.current.get(visibleProject);
-			if (activeThumb && containerRef.current) {
-				try {
-					const containerRect = containerRef.current.getBoundingClientRect();
-					const thumbRect = activeThumb.getBoundingClientRect();
+	// Check if we're at or near a boundary position with improved detection
+	const checkBoundaryPosition = useCallback(() => {
+		if (!containerRef.current || !boundaryIds.first) return;
 
-					const scrollLeft =
-						thumbRect.left +
-						containerRef.current.scrollLeft -
-						containerRect.left -
-						containerRect.width / 2 +
-						thumbRect.width / 2;
+		const container = containerRef.current;
+		const firstThumb = thumbnailRefs.current.get(boundaryIds.first);
+		const secondThumb = boundaryIds.second
+			? thumbnailRefs.current.get(boundaryIds.second)
+			: null;
+		const lastThumb = boundaryIds.last
+			? thumbnailRefs.current.get(boundaryIds.last)
+			: null;
 
-					containerRef.current.scrollTo({
-						left: scrollLeft,
-						behavior: "smooth",
-					});
-				} catch (error) {
-					console.warn("Error scrolling to thumbnail:", error);
-				}
-			}
-		}
-	}, [visibleProject]);
+		if (!firstThumb) return;
 
-	const { data: allProjects, isSuccess: allProjectsSuccess } = useQuery({
-		queryKey: ["allMobileThumbnails"],
-		queryFn: async () => {
-			try {
-				return client.fetch<Projects[]>(getAllProjectsSimple);
-			} catch (error) {
-				console.error("Error fetching all projects:", error);
-				return [];
-			}
-		},
-		retry: 3,
-		retryDelay: 1000,
-	});
-
-	const { data: categoryProjects, isSuccess: categorySuccess } = useQuery({
-		queryKey: ["categoryMobileThumbnails", { category }],
-		queryFn: async () => {
-			if (!category) return null;
-			try {
-				return client.fetch<Projects[]>(getProjectsByCategorySimple(category));
-			} catch (error) {
-				console.error("Error fetching category projects:", error);
-				return [];
-			}
-		},
-		enabled: !!category,
-		retry: 3,
-		retryDelay: 1000,
-	});
-
-	// Memoize category project IDs to prevent recalculation
-	const categoryProjectIds = useMemo(() => {
-		const ids = new Set<string>();
-		if (category && categoryProjects) {
-			for (const item of categoryProjects) {
-				const projectId = item.slug?.current || item._id;
-				ids.add(projectId);
-			}
-		}
-		return ids;
-	}, [category, categoryProjects]);
-
-	// Memoize sorted projects to prevent recalculation
-	const sortedProjects = useMemo(() => {
-		if (!allProjects || !Array.isArray(allProjects)) return [];
-
-		return [...allProjects]
-			.filter(
-				(project) => project?._id && (project.slug?.current || project._id),
-			)
-			.sort((a, b) => {
-				if (!category || !categoryProjectIds.size) return 0;
-
-				const aInCategory = categoryProjectIds.has(a.slug?.current || a._id);
-				const bInCategory = categoryProjectIds.has(b.slug?.current || b._id);
-
-				if (aInCategory && !bInCategory) return -1;
-				if (!aInCategory && bInCategory) return 1;
-				return 0;
-			});
-	}, [allProjects, category, categoryProjectIds]);
-
-	// Initialize first project immediately when data is available
-	useEffect(() => {
-		if (project) {
-			isInitializedRef.current = true;
-			setVisibleProject(project);
-			lastVisibleProjectRef.current = project;
+		// Wider threshold for start detection
+		if (container.scrollLeft < 30) {
+			isAtBoundaryRef.current = "start";
 			return;
 		}
 
-		if (
-			allProjectsSuccess &&
-			sortedProjects.length > 0 &&
-			!isInitializedRef.current
-		) {
-			let firstProjectId: string;
+		// Near-start detection - within the first two items
+		if (secondThumb && container.scrollLeft < secondThumb.offsetWidth * 1.5) {
+			isAtBoundaryRef.current = "near-start";
+			return;
+		}
 
-			if (
-				category &&
-				categorySuccess &&
-				categoryProjects &&
-				categoryProjects.length > 0
-			) {
-				firstProjectId =
-					categoryProjects[0].slug?.current || categoryProjects[0]._id;
-			} else {
-				firstProjectId =
-					sortedProjects[0].slug?.current || sortedProjects[0]._id;
+		// End boundary detection
+		if (lastThumb && container.scrollWidth - container.clientWidth > 0) {
+			const maxScroll = container.scrollWidth - container.clientWidth;
+			if (Math.abs(container.scrollLeft - maxScroll) < 30) {
+				isAtBoundaryRef.current = "end";
+				return;
+			}
+		}
+
+		isAtBoundaryRef.current = null;
+	}, [boundaryIds]);
+
+	// Determine if an item is a boundary item with enhanced logic
+	const isBoundaryItem = useCallback(
+		(projectId: string): "first" | "second" | "last" | null => {
+			if (projectId === boundaryIds.first) return "first";
+			if (projectId === boundaryIds.second) return "second";
+			if (projectId === boundaryIds.last) return "last";
+			return null;
+		},
+		[boundaryIds],
+	);
+
+	// Optimize first two items rendering
+	useEffect(() => {
+		// Force immediate rendering of first two items for better performance
+		if (sortedProjects.length >= 2 && containerRef.current) {
+			// Set initial scroll position to 0 to ensure first items are visible
+			containerRef.current.scrollLeft = 0;
+
+			// Force layout recalculation for first items
+			if (boundaryIds.first) {
+				const firstThumb = thumbnailRefs.current.get(boundaryIds.first);
+				if (firstThumb) {
+					// Trigger reflow
+					void firstThumb.offsetHeight;
+				}
 			}
 
-			// Set immediately without debouncing for initial load
-			isInitializedRef.current = true;
-			setVisibleProject(firstProjectId);
-			lastVisibleProjectRef.current = firstProjectId;
+			if (boundaryIds.second) {
+				const secondThumb = thumbnailRefs.current.get(boundaryIds.second);
+				if (secondThumb) {
+					// Trigger reflow
+					void secondThumb.offsetHeight;
+				}
+			}
 		}
-	}, [
-		project,
-		category,
-		allProjectsSuccess,
-		categoryProjects,
-		categorySuccess,
-		sortedProjects,
-	]);
+	}, [sortedProjects, boundaryIds]);
 
+	// Optimized scroll for all positions including improved start handling
+	const scrollToThumbnail = useCallback(
+		(projectId: string, immediate = false) => {
+			if (!projectId || !containerRef.current) return;
+
+			// Don't scroll during user interaction unless forced
+			if (isUserScrollingRef.current && !immediate) return;
+
+			// Don't scroll if scroll isn't stable, unless forced
+			if (!scrollStableRef.current && !immediate) return;
+
+			// Don't scroll if we're in selection lock mode
+			if (selectionLockRef.current && !immediate) return;
+
+			const container = containerRef.current;
+			const activeThumb = thumbnailRefs.current.get(projectId);
+			if (!activeThumb) {
+				if (retryCountRef.current < maxRetries) {
+					retryCountRef.current++;
+					setTimeout(() => scrollToThumbnail(projectId, immediate), 50);
+				}
+				return;
+			}
+
+			// Reset retry count on successful find
+			retryCountRef.current = 0;
+
+			// Check dimensions
+			const rect = activeThumb.getBoundingClientRect();
+			if (rect.width === 0 || rect.height === 0) {
+				if (retryCountRef.current < maxRetries) {
+					retryCountRef.current++;
+					setTimeout(() => scrollToThumbnail(projectId, immediate), 50);
+				}
+				return;
+			}
+
+			// Don't scroll if already in motion and not forced
+			if (isScrollingProgrammatically.current && !immediate) {
+				return;
+			}
+
+			isScrollingProgrammatically.current = true;
+
+			try {
+				const containerRect = container.getBoundingClientRect();
+				const thumbRect = activeThumb.getBoundingClientRect();
+
+				// Get boundary status
+				const boundaryStatus = isBoundaryItem(projectId);
+
+				// Special fast path for first two items to eliminate lag
+				if (boundaryStatus === "first" || boundaryStatus === "second") {
+					// For first and second items, use a more direct approach
+					// This avoids complex animations that can cause lag
+					requestAnimationFrame(() => {
+						// Immediate scroll with no animation for first item
+						if (boundaryStatus === "first") {
+							container.scrollLeft = 0;
+							isAtBoundaryRef.current = "start";
+						}
+						// Optimized position for second item
+						else if (boundaryStatus === "second") {
+							const firstThumb = thumbnailRefs.current.get(
+								boundaryIds.first || "",
+							);
+							const firstWidth = firstThumb?.offsetWidth || 0;
+							container.scrollLeft = Math.max(0, firstWidth * 0.5);
+							isAtBoundaryRef.current = "near-start";
+						}
+
+						// Reset state quickly
+						setTimeout(() => {
+							isScrollingProgrammatically.current = false;
+							selectionLockRef.current = false;
+						}, 50);
+					});
+
+					return; // Skip the rest of the function for first two items
+				}
+
+				// Skip scrolling if already well-positioned (unless forced)
+				const thumbCenter = thumbRect.left + thumbRect.width / 2;
+				const containerCenter = containerRect.left + containerRect.width / 2;
+				const distanceFromCenter = Math.abs(containerCenter - thumbCenter);
+
+				if (distanceFromCenter < containerRect.width * 0.25 && !immediate) {
+					isScrollingProgrammatically.current = false;
+					return;
+				}
+
+				// Calculate scroll position based on item position
+				let scrollLeft: number;
+
+				if (boundaryStatus === "last") {
+					// Last item - scroll to end
+					scrollLeft = container.scrollWidth - container.clientWidth;
+					isAtBoundaryRef.current = "end";
+				} else {
+					// Normal centering calculation for middle items
+					isAtBoundaryRef.current = null;
+					scrollLeft =
+						thumbRect.left +
+						container.scrollLeft -
+						containerRect.left -
+						containerRect.width / 2 +
+						thumbRect.width / 2;
+				}
+
+				// Always use fast scroll for boundary items or during fast scrolling
+				const useImmediateScroll =
+					immediate || boundaryStatus === "last" || isUserScrollingRef.current;
+
+				// Use requestAnimationFrame for smoother scrolling
+				requestAnimationFrame(() => {
+					// Perform main scroll
+					container.scrollTo({
+						left: Math.max(
+							0,
+							Math.min(
+								scrollLeft,
+								container.scrollWidth - container.clientWidth,
+							),
+						),
+						behavior: useImmediateScroll ? "auto" : "smooth",
+					});
+
+					// For boundary items, follow up with a second scroll to ensure precision
+					if (boundaryStatus === "last" && !immediate) {
+						setTimeout(() => {
+							if (!container) return;
+							container.scrollTo({
+								left: container.scrollWidth - container.clientWidth,
+								behavior: "smooth",
+							});
+						}, 0);
+					}
+				});
+			} catch (error) {
+				isScrollingProgrammatically.current = false;
+				console.error(error);
+				return;
+			}
+
+			// Lock selection during scroll
+			selectionLockRef.current = true;
+
+			// Reset scrolling flag and selection lock after animation completes
+			// Use shorter time for boundary items
+			const boundaryStatus = isBoundaryItem(projectId);
+			const isAnyBoundary = boundaryStatus !== null;
+
+			// Use different timing based on item position and scroll type
+			const resetTime = immediate ? 100 : isAnyBoundary ? 250 : 400;
+
+			if (scrollEndTimeoutRef.current) {
+				clearTimeout(scrollEndTimeoutRef.current);
+			}
+
+			scrollEndTimeoutRef.current = setTimeout(() => {
+				isScrollingProgrammatically.current = false;
+				selectionLockRef.current = false;
+
+				// For boundary items, do a final position check
+				if (isAnyBoundary) {
+					checkBoundaryPosition();
+				}
+			}, resetTime);
+		},
+		[boundaryIds, checkBoundaryPosition, isBoundaryItem],
+	);
+
+	// Ultra-stable update function with enhanced boundary handling
+	const updateVisibleProject = useCallback(
+		(projectId: string, immediate = false, force = false) => {
+			if (!projectId) return;
+			if (lastVisibleProjectRef.current === projectId && !force) return;
+
+			// Special handling for boundary items
+			const boundaryStatus = isBoundaryItem(projectId);
+			const isAnyBoundary = boundaryStatus !== null;
+
+			// Extreme stability checks - bypass most checks for boundary items
+			if (!force && !isAnyBoundary) {
+				// Don't change during programmatic scrolling
+				if (isScrollingProgrammatically.current) return;
+
+				// Don't change during user scrolling
+				if (isUserScrollingRef.current) return;
+
+				// Don't change while scroll is settling
+				if (!scrollStableRef.current) return;
+
+				// Don't change during selection lock
+				if (selectionLockRef.current) return;
+
+				// More lenient cooldown to allow smoother transitions
+				const now = Date.now();
+				if (now - lastUpdateTimeRef.current < updateCooldownMs / 2) {
+					return;
+				}
+
+				// Only allow changes if the new thumbnail position is significantly better
+				const activeThumb = thumbnailRefs.current.get(projectId);
+				if (!activeThumb || !containerRef.current) return;
+
+				const containerRect = containerRef.current.getBoundingClientRect();
+				const thumbRect = activeThumb.getBoundingClientRect();
+
+				// Score current thumbnail position (0 = perfect, 1 = worst)
+				const thumbCenter = thumbRect.left + thumbRect.width / 2;
+				const containerCenter = containerRect.left + containerRect.width / 2;
+				const currentScore =
+					Math.abs(containerCenter - thumbCenter) / containerRect.width;
+
+				// More responsive hysteresis - only change if new position is better
+				if (
+					currentScore >
+					stabilityThresholdRef.current - stabilityThreshold / 1.5
+				) {
+					return;
+				}
+
+				// Update threshold for next comparison
+				stabilityThresholdRef.current = currentScore;
+			} else {
+				// On forced updates, reset stability metrics
+				stabilityThresholdRef.current = 0;
+			}
+
+			// Update timestamps and state
+			lastUpdateTimeRef.current = Date.now();
+			lastVisibleProjectRef.current = projectId;
+			setVisibleProject(projectId);
+
+			// Clear any existing scroll timeout
+			if (scrollTimeoutRef.current) {
+				clearTimeout(scrollTimeoutRef.current);
+			}
+
+			// Always use immediate scrolling for first and second items
+			const useImmediateScroll =
+				immediate || boundaryStatus === "first" || boundaryStatus === "second";
+
+			// Use different scroll timing for boundary items
+			if (!isUserScrollingRef.current || useImmediateScroll) {
+				if (useImmediateScroll) {
+					scrollToThumbnail(projectId, true);
+				} else {
+					// Delayed scroll to ensure state is updated first
+					scrollTimeoutRef.current = setTimeout(() => {
+						scrollToThumbnail(projectId, false);
+					}, 50); // Faster response time
+				}
+			}
+		},
+		[scrollToThumbnail, isBoundaryItem],
+	);
+
+	// Simplified, stable centered thumbnail detection
+	const detectCenteredThumbnail = useCallback(() => {
+		// Only detect when appropriate
+		if (
+			isScrollingProgrammatically.current ||
+			selectionLockRef.current ||
+			!scrollStableRef.current ||
+			!containerRef.current ||
+			thumbnailRefs.current.size === 0
+		)
+			return;
+
+		// Check for boundary positions first - this improves edge detection
+		checkBoundaryPosition();
+
+		// If we're at a boundary, prioritize the boundary item
+		if (isAtBoundaryRef.current === "start" && boundaryIds.first) {
+			if (lastVisibleProjectRef.current !== boundaryIds.first) {
+				updateVisibleProject(boundaryIds.first, true);
+			}
+			return;
+		}
+
+		// Near-start detection - prioritize the second item
+		if (isAtBoundaryRef.current === "near-start" && boundaryIds.second) {
+			if (lastVisibleProjectRef.current !== boundaryIds.second) {
+				updateVisibleProject(boundaryIds.second, true);
+			}
+			return;
+		}
+
+		if (isAtBoundaryRef.current === "end" && boundaryIds.last) {
+			if (lastVisibleProjectRef.current !== boundaryIds.last) {
+				updateVisibleProject(boundaryIds.last, true);
+			}
+			return;
+		}
+
+		// For non-boundary positions, use improved visibility detection
+		const containerRect = containerRef.current.getBoundingClientRect();
+		const containerCenter = containerRect.left + containerRect.width / 2;
+		const containerWidth = containerRect.width;
+
+		// Track best match with better visibility scoring
+		let bestMatch = {
+			projectId: "",
+			score: Number.NEGATIVE_INFINITY,
+		};
+
+		thumbnailRefs.current.forEach((thumbEl, projectId) => {
+			const thumbRect = thumbEl.getBoundingClientRect();
+
+			// Skip if element isn't visible at all
+			if (
+				thumbRect.right < containerRect.left ||
+				thumbRect.left > containerRect.right
+			) {
+				return;
+			}
+
+			// Calculate visible portion
+			const visibleLeft = Math.max(thumbRect.left, containerRect.left);
+			const visibleRight = Math.min(thumbRect.right, containerRect.right);
+			const visibleWidth = Math.max(0, visibleRight - visibleLeft);
+			const visibleRatio = visibleWidth / thumbRect.width;
+
+			// Skip if less than 30% visible
+			if (visibleRatio < 0.3) return;
+
+			// Calculate centrality (0 = perfect center, 1 = edge)
+			const thumbCenter = thumbRect.left + thumbRect.width / 2;
+			const distanceFromCenter = Math.abs(containerCenter - thumbCenter);
+			const centrality =
+				1 - Math.min(1, distanceFromCenter / (containerWidth / 2));
+
+			// Combined score: visibility + centrality (0-2 range, higher is better)
+			const score = visibleRatio + centrality;
+
+			if (score > bestMatch.score) {
+				bestMatch = {
+					projectId,
+					score,
+				};
+			}
+		});
+
+		// Only update if we found a valid match and it's different from current
+		if (
+			bestMatch.projectId &&
+			lastVisibleProjectRef.current !== bestMatch.projectId &&
+			bestMatch.score > 0.8 // Only choose items with good scores
+		) {
+			updateVisibleProject(bestMatch.projectId);
+		}
+	}, [updateVisibleProject, boundaryIds, checkBoundaryPosition]);
+
+	// Handle project changes from URL (highest priority)
+	useEffect(() => {
+		if (project) {
+			// Reset all state on URL change
+			resetScrollState();
+			updateVisibleProject(project, true, true);
+		}
+	}, [project, updateVisibleProject, resetScrollState]);
+
+	// Initialize first project when data loads
+	useEffect(() => {
+		if (!visibleProject && sortedProjects.length > 0) {
+			const firstProject = sortedProjects[0];
+			const firstProjectId = firstProject.slug?.current || firstProject._id;
+			if (firstProjectId) {
+				resetScrollState();
+				updateVisibleProject(firstProjectId, true, true);
+			}
+		}
+	}, [sortedProjects, visibleProject, updateVisibleProject, resetScrollState]);
+
+	// Simplified project visibility event handler - only respond to explicit interactions
 	useEffect(() => {
 		const handleVisibleProject = (e: ProjectInViewEvent) => {
-			// Don't handle events until initialization is complete
-			if (!isInitializedRef.current) return;
+			if (isScrollingProgrammatically.current) return;
 
-			const {
-				projectId,
-				isActive,
-				enteringFromTop = false,
-				centrality = 0,
-				visibleRatio = 0,
-			} = e.detail;
+			const { projectId, isActive } = e.detail;
 
-			if (!projectId) return;
+			if (!projectId || !isActive) return;
 
-			if (centrality === 0 && visibleRatio === 0) {
-				if (activeProjectsRef.current.has(projectId)) {
-					activeProjectsRef.current.delete(projectId);
-				}
-				if (enteringProjectsRef.current.has(projectId)) {
-					enteringProjectsRef.current.delete(projectId);
-				}
-				return;
-			}
-
-			if (enteringFromTop) {
-				enteringProjectsRef.current.add(projectId);
-			} else {
-				enteringProjectsRef.current.delete(projectId);
-			}
-
+			// Only respect events for active projects with explicit interaction
 			if (isActive) {
-				activeProjectsRef.current.add(projectId);
-			} else {
-				activeProjectsRef.current.delete(projectId);
-			}
-
-			if (scrollingRef.current) {
-				return;
-			}
-
-			if (enteringFromTop && projectId !== visibleProject) {
-				debouncedSetVisibleProject(projectId);
-				return;
-			}
-
-			if (isActive && projectId !== visibleProject) {
-				debouncedSetVisibleProject(projectId);
+				resetScrollState(); // Reset state on explicit interaction
+				updateVisibleProject(projectId, true, true);
 			}
 		};
 
@@ -234,152 +588,308 @@ export const MobileThumbnails = () => {
 				"projectInView",
 				handleVisibleProject as EventListener,
 			);
-			activeProjectsRef.current.clear();
-			enteringProjectsRef.current.clear();
 		};
-	}, [visibleProject, debouncedSetVisibleProject]);
+	}, [updateVisibleProject, resetScrollState]);
 
+	// Enhanced scroll detection with improved boundary awareness
 	useEffect(() => {
-		const handleScroll = () => {
-			scrollingRef.current = true;
+		const handleScrollStart = () => {
+			isUserScrollingRef.current = true;
+			scrollStableRef.current = false;
 
-			if (scrollTimerRef.current) {
-				clearTimeout(scrollTimerRef.current);
+			// Clear any timeout that would end scrolling state
+			if (userScrollTimeoutRef.current) {
+				clearTimeout(userScrollTimeoutRef.current);
+			}
+			if (scrollStabilityTimeoutRef.current) {
+				clearTimeout(scrollStabilityTimeoutRef.current);
+			}
+		};
+
+		// Use requestAnimationFrame for smoother scroll handling
+		let rafId: number | null = null;
+		let lastProcessTime = 0;
+		const THROTTLE_MS = 50; // Process at most every 50ms during active scrolling
+
+		const handleScroll = () => {
+			// Cancel any pending animation frame
+			if (rafId !== null) {
+				cancelAnimationFrame(rafId);
 			}
 
-			scrollTimerRef.current = setTimeout(() => {
-				if (!isMountedRef.current) return;
+			// Immediately mark as scrolling
+			handleScrollStart();
 
-				scrollingRef.current = false;
+			// Use requestAnimationFrame to debounce scroll handling
+			rafId = requestAnimationFrame(() => {
+				const now = Date.now();
 
-				if (enteringProjectsRef.current.size > 0) {
-					const enteringProject = Array.from(enteringProjectsRef.current)[0];
-					if (enteringProject !== visibleProject && isMountedRef.current) {
-						debouncedSetVisibleProject(enteringProject);
-						return;
-					}
+				// Throttle scroll processing during rapid scrolling
+				if (now - lastProcessTime < THROTTLE_MS) {
+					return;
 				}
 
-				if (activeProjectsRef.current.size > 0) {
-					const activeProject = Array.from(activeProjectsRef.current)[0];
-					if (activeProject !== visibleProject && isMountedRef.current) {
-						debouncedSetVisibleProject(activeProject);
-					}
+				lastProcessTime = now;
+
+				// Check for boundary positions during active scrolling
+				const container = containerRef.current;
+				if (!container) return;
+
+				const currentPosition = container.scrollLeft;
+
+				// Enhanced boundary detection with near-start zone
+				if (currentPosition <= 10) {
+					isAtBoundaryRef.current = "start";
+				} else if (currentPosition < 100) {
+					isAtBoundaryRef.current = "near-start";
+				} else if (
+					Math.abs(
+						currentPosition - (container.scrollWidth - container.clientWidth),
+					) <= 10
+				) {
+					isAtBoundaryRef.current = "end";
+				} else {
+					isAtBoundaryRef.current = null;
 				}
-			}, 150);
+
+				// Determine scroll direction
+				if (currentPosition > lastScrollPositionRef.current) {
+					lastScrollDirectionRef.current = "right";
+				} else if (currentPosition < lastScrollPositionRef.current) {
+					lastScrollDirectionRef.current = "left";
+				}
+
+				lastScrollPositionRef.current = currentPosition;
+				lastScrollTimeRef.current = now;
+
+				// Clear previous timeouts
+				if (userScrollTimeoutRef.current) {
+					clearTimeout(userScrollTimeoutRef.current);
+				}
+				if (scrollStabilityTimeoutRef.current) {
+					clearTimeout(scrollStabilityTimeoutRef.current);
+				}
+
+				// Wait for scrolling to completely stop
+				userScrollTimeoutRef.current = setTimeout(() => {
+					isUserScrollingRef.current = false;
+
+					// Detect boundaries before checking stability
+					checkBoundaryPosition();
+
+					// Additional delay before allowing detection
+					scrollStabilityTimeoutRef.current = setTimeout(() => {
+						scrollStableRef.current = true;
+
+						// Prioritize boundary items after scrolling stops
+						if (isAtBoundaryRef.current === "start" && boundaryIds.first) {
+							if (lastVisibleProjectRef.current !== boundaryIds.first) {
+								updateVisibleProject(boundaryIds.first, true);
+							}
+						} else if (
+							isAtBoundaryRef.current === "near-start" &&
+							boundaryIds.second
+						) {
+							if (lastVisibleProjectRef.current !== boundaryIds.second) {
+								updateVisibleProject(boundaryIds.second, true);
+							}
+						} else if (isAtBoundaryRef.current === "end" && boundaryIds.last) {
+							if (lastVisibleProjectRef.current !== boundaryIds.last) {
+								updateVisibleProject(boundaryIds.last, true);
+							}
+							// Only detect once scroll is completely stable and not at boundary
+						} else if (!isScrollingProgrammatically.current) {
+							detectCenteredThumbnail();
+						}
+					}, 120); // Slightly longer stability timing for smoother transitions
+				}, 100); // Slightly longer scroll end detection for better stability
+			});
 		};
 
+		// Explicit interaction handlers with improved performance
+		const handleTouchStart = () => {
+			handleScrollStart();
+		};
+
+		const handleTouchEnd = () => {
+			// Don't end scrolling state immediately - wait for momentum scrolling
+		};
+
+		// Use passive event listeners for better performance
 		const container = containerRef.current;
 		if (container) {
-			container.addEventListener("scroll", handleScroll, {
+			container.addEventListener("scroll", handleScroll, { passive: true });
+			container.addEventListener("touchstart", handleTouchStart, {
 				passive: true,
 			});
+			container.addEventListener("touchend", handleTouchEnd, { passive: true });
 		}
 
 		return () => {
 			if (container) {
 				container.removeEventListener("scroll", handleScroll);
+				container.removeEventListener("touchstart", handleTouchStart);
+				container.removeEventListener("touchend", handleTouchEnd);
 			}
-			if (scrollTimerRef.current) {
-				clearTimeout(scrollTimerRef.current);
+			if (userScrollTimeoutRef.current) {
+				clearTimeout(userScrollTimeoutRef.current);
+			}
+			if (scrollStabilityTimeoutRef.current) {
+				clearTimeout(scrollStabilityTimeoutRef.current);
+			}
+			if (rafId !== null) {
+				cancelAnimationFrame(rafId);
 			}
 		};
-	}, [visibleProject, debouncedSetVisibleProject]);
+	}, [
+		detectCenteredThumbnail,
+		checkBoundaryPosition,
+		boundaryIds,
+		updateVisibleProject,
+	]);
 
-	// Nettoyage des références lors du changement de projets
+	useEffect(() => {
+		const handleResize = () => {
+			const currentProject = lastVisibleProjectRef.current;
+			if (currentProject) {
+				resetScrollState();
+
+				setTimeout(() => {
+					checkBoundaryPosition();
+					scrollToThumbnail(currentProject, true);
+				}, 200);
+			}
+		};
+
+		window.addEventListener("resize", handleResize, { passive: true });
+
+		// Set up ResizeObserver if supported
+		if (typeof ResizeObserver !== "undefined" && containerRef.current) {
+			resizeObserverRef.current = new ResizeObserver(() => {
+				const currentProject = lastVisibleProjectRef.current;
+				if (currentProject) {
+					// Reset stability on resize
+					resetScrollState();
+
+					// Small delay to let layout stabilize
+					setTimeout(() => {
+						// Check boundary situation
+						checkBoundaryPosition();
+						scrollToThumbnail(currentProject, true);
+					}, 200);
+				}
+			});
+			resizeObserverRef.current.observe(containerRef.current);
+		}
+
+		return () => {
+			window.removeEventListener("resize", handleResize);
+			if (resizeObserverRef.current) {
+				resizeObserverRef.current.disconnect();
+			}
+		};
+	}, [scrollToThumbnail, resetScrollState, checkBoundaryPosition]);
+
 	useEffect(() => {
 		thumbnailRefs.current.clear();
-		activeProjectsRef.current.clear();
-		enteringProjectsRef.current.clear();
-	}, [sortedProjects]);
+		lastVisibleProjectRef.current = null;
+		retryCountRef.current = 0;
+		lastUpdateTimeRef.current = 0;
+		stabilityThresholdRef.current = 0;
+		lastScrollPositionRef.current = 0;
+		isAtBoundaryRef.current = null;
+		resetScrollState();
 
-	// Cleanup on unmount
-	useEffect(() => {
 		return () => {
-			isMountedRef.current = false;
-			if (scrollTimerRef.current) {
-				clearTimeout(scrollTimerRef.current);
-			}
+			resetScrollState();
 		};
-	}, []);
+	}, [sortedProjects, resetScrollState]);
 
-	// Memoize opacity calculation to prevent unnecessary recalculations
 	const getProjectOpacity = useCallback(
-		(projectId: string) => {
+		(projectId: string, index: number) => {
+			console.log(projectId, index);
 			if (!projectId) return 0;
 
-			let isVisible = projectId === visibleProject;
-
-			if (!visibleProject && sortedProjects.length > 0) {
-				if (category && categoryProjects && categoryProjects.length > 0) {
-					const firstCategoryProjectId =
-						categoryProjects[0]?.slug?.current || categoryProjects[0]?._id;
-					isVisible = projectId === firstCategoryProjectId;
-				} else {
-					const firstProjectId =
-						sortedProjects[0]?.slug?.current || sortedProjects[0]?._id;
-					isVisible = projectId === firstProjectId;
-				}
-			}
+			const isVisible = projectId === visibleProject;
 
 			if (category) {
-				const inCategory = categoryProjectIds.has(projectId);
-				if (inCategory) {
-					return isVisible ? 1 : 0.7;
-				}
-				return 0.3;
+				return isVisible ? 1 : 0.6;
 			}
 
-			return isVisible ? 1 : 0.5;
+			return isVisible ? 1 : 0.35;
+		},
+		[visibleProject, category],
+	);
+
+	// Optimized rendering for thumbnails
+	const renderThumbnail = useCallback(
+		(item: ProjectWithCategories, index: number) => {
+			if (!item?._id) return null;
+
+			const projectId = item.slug?.current || item._id;
+			if (!projectId) return null;
+
+			const isActive = projectId === visibleProject;
+			const isFirst = index === 0;
+			const isSecond = index === 1;
+			const isFirstOrSecond = isFirst || isSecond;
+			const isBoundary = isBoundaryItem(projectId) !== null;
+
+			// Optimize animations based on position
+			const transitionDuration = isFirstOrSecond || isBoundary ? 0.15 : 0.2;
+			const opacityDuration = isFirstOrSecond || isBoundary ? 0.1 : 0.15;
+			const easeType = "easeInOut";
+
+			return (
+				<motion.div
+					key={item._id}
+					ref={(el) => {
+						if (el && projectId) {
+							thumbnailRefs.current.set(projectId, el);
+						}
+					}}
+					initial={{
+						opacity: 0.35,
+						y: 1,
+						filter: "brightness(0.95)",
+					}}
+					animate={{
+						opacity: getProjectOpacity(projectId, index),
+					}}
+					transition={{
+						duration: transitionDuration,
+						ease: easeType,
+						opacity: { duration: opacityDuration },
+						type: "tween",
+					}}
+					layout={false} // Disable layout animations for better performance
+					className={clsx("h-full w-full", isActive ? "z-10" : "z-0")}
+					onClick={() => {
+						if (projectId) {
+							resetScrollState();
+							updateVisibleProject(projectId, true, true);
+						}
+					}}
+				>
+					<Thumbnail className="h-full w-full bg-white" item={item} />
+				</motion.div>
+			);
 		},
 		[
 			visibleProject,
-			sortedProjects,
-			category,
-			categoryProjects,
-			categoryProjectIds,
+			resetScrollState,
+			updateVisibleProject,
+			getProjectOpacity,
+			isBoundaryItem,
 		],
 	);
 
 	return (
 		<div
 			ref={containerRef}
-			className="relative mt-2 flex h-auto w-screen items-start gap-1.5 self-stretch overflow-x-auto pr-3 md:hidden"
+			className="relative mt-2 flex h-auto w-full items-start gap-1.5 self-stretch overflow-x-auto scroll-smooth pb-1 will-change-scroll md:hidden"
 		>
-			{sortedProjects
-				.map((item) => {
-					if (!item?._id) return null;
-
-					const projectId = item.slug?.current || item._id;
-					if (!projectId) return null;
-
-					return (
-						<motion.div
-							key={item._id}
-							ref={(el) => {
-								if (el && projectId) {
-									thumbnailRefs.current.set(projectId, el);
-								}
-							}}
-							animate={{
-								opacity: getProjectOpacity(projectId),
-							}}
-							transition={{
-								duration: 0.2,
-								ease: "easeOut",
-							}}
-							className="h-full w-full"
-							onClick={() => {
-								if (projectId) {
-									debouncedSetVisibleProject(projectId);
-								}
-							}}
-						>
-							<Thumbnail className="h-full w-full" item={item} />
-						</motion.div>
-					);
-				})
-				.filter(Boolean)}
+			{sortedProjects.map(renderThumbnail).filter(Boolean)}
 		</div>
 	);
 };

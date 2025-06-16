@@ -3,7 +3,7 @@ import {defineCliConfig} from 'sanity/cli'
 export default defineCliConfig({
   api: {
     projectId: process.env.VITE_SANITY_PROJECT_ID || '8gdwrje8',
-    dataset: process.env.VITE_SANITY_DATASET || 'development',
+    dataset: process.env.VITE_SANITY_DATASET || 'production',
   },
   /**
    * Enable auto-updates for studios.

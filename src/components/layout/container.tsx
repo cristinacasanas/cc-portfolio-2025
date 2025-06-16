@@ -15,7 +15,7 @@ export const Container = ({
 				"overflow-y-hidden md:overflow-y-hidden", // Permet le scroll vertical sur mobile
 				"pt-[var(--header-height)] md:pb-0",
 				"min-h-[100dvh] md:h-[100dvh] md:max-h-[100dvh]", // min-height sur mobile au lieu de height fixe
-				"px-1.5 lg:px-3",
+				"px-4 lg:px-3",
 				className,
 			)}
 		>

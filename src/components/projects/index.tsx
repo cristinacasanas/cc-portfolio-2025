@@ -1,17 +1,28 @@
 import Plus from "@/components/ui/icons/plus";
 import { Image } from "@/components/ui/image";
+import { useLanguage } from "@/hooks/useLanguage";
 import { urlFor } from "@/lib/sanity";
 import {
 	clear as clearScrollService,
 	registerProject,
 } from "@/lib/scroll.service";
 import clsx from "clsx";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, type PanInfo, motion } from "framer-motion";
 import React, { useEffect, useRef } from "react";
 import type { Categories, Projects } from "studio/sanity.types";
 
 type ProjectWithCategories = Projects & {
 	expandedCategories?: Categories[];
+};
+
+// Helper to determine if a media item is a video based on mimeType or file extension
+const isVideo = (item: { asset?: { _ref?: string } }): boolean => {
+	if (!item?.asset?._ref) return false;
+
+	// Check if file extension suggests it's a video (mp4, webm, etc.)
+	const ref = item.asset._ref;
+	// File references typically start with "file-" instead of "image-"
+	return ref.startsWith("file-");
 };
 
 // Référence globale pour suivre tous les projets et leurs positions
@@ -49,8 +60,24 @@ export const projectsRegistry = {
 const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 	const [isOpen, setIsOpen] = React.useState(false);
 	const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
+	const [direction, setDirection] = React.useState(0);
 	const ref = useRef<HTMLDivElement>(null);
 	const projectId = project.slug?.current || project._id;
+
+	// Function to handle image navigation
+	const navigateImage = (newIndexInput: number) => {
+		const galleryLength = project.gallery?.length || 1;
+		let newIndex = newIndexInput;
+
+		if (newIndex < 0) {
+			newIndex = galleryLength - 1;
+		} else if (newIndex >= galleryLength) {
+			newIndex = 0;
+		}
+
+		setDirection(newIndex > currentImageIndex ? 1 : -1);
+		setCurrentImageIndex(newIndex);
+	};
 
 	// Enregistrer la position du projet lors du montage
 	useEffect(() => {
@@ -222,55 +249,204 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 			data-project-id={projectId}
 			className="inline-flex w-full flex-col items-start justify-start gap-1.5 self-stretch md:gap-2.5"
 		>
-			<CoverImage
-				cover={project.gallery}
+			<MainImage
+				item={project.gallery?.[currentImageIndex]}
 				title={project.title}
-				index={currentImageIndex}
+				direction={direction}
+				onDrag={handleDragEnd}
 			/>
 			<Carousel
 				images={project.gallery}
 				currentIndex={currentImageIndex}
-				setCurrentIndex={setCurrentImageIndex}
+				setCurrentIndex={navigateImage}
 			/>
 			<ProjectInfo isOpen={isOpen} setIsOpen={setIsOpen} project={project} />
-			<ProjectDescription
-				isOpen={isOpen}
-				description={project.description?.fr || ""}
-			/>
+			<ProjectDescription isOpen={isOpen} description={project.description} />
 		</div>
+	);
+
+	// Handle drag end event for the main image
+	function handleDragEnd(
+		_: MouseEvent | TouchEvent | PointerEvent,
+		info: PanInfo,
+	) {
+		const { offset, velocity } = info;
+		const swipeThreshold = 50;
+
+		if (offset.x > swipeThreshold || velocity.x > 800) {
+			// Swipe right - go to previous image
+			navigateImage(currentImageIndex - 1);
+		} else if (offset.x < -swipeThreshold || velocity.x < -800) {
+			// Swipe left - go to next image
+			navigateImage(currentImageIndex + 1);
+		}
+	}
+};
+
+// Video component with the same props interface as Image
+const Video = ({
+	className,
+	src,
+	alt,
+	ratio,
+	...props
+}: {
+	className?: string;
+	src: string;
+	alt: string;
+	ratio?: "16/9" | "4/3" | "1/1" | "3/4" | "9/16" | "4/5";
+}) => {
+	const aspectRatioClasses: Record<string, string> = {
+		"16/9": "aspect-video",
+		"4/3": "aspect-[4/3]",
+		"1/1": "aspect-square",
+		"3/4": "aspect-[3/4]",
+		"9/16": "aspect-[9/16]",
+		"4/5": "aspect-[4/5]",
+	};
+
+	const aspectClass = ratio ? aspectRatioClasses[ratio] : "";
+
+	return (
+		<video
+			className={clsx(aspectClass, "h-full w-full object-cover", className)}
+			src={src}
+			title={alt}
+			playsInline
+			autoPlay
+			loop
+			{...props}
+		>
+			<track kind="captions" />
+			Your browser does not support the video tag.
+		</video>
 	);
 };
 
-const CoverImage = ({
-	cover,
-	title,
-	index,
-}: {
-	cover: Projects["gallery"];
+// Media item component that handles both images and videos
+interface MediaItemProps {
+	item: NonNullable<Projects["gallery"]>[0];
 	title?: string;
-	index: number;
+	className?: string;
+	[key: string]: unknown;
+}
+
+const MediaItem = ({ item, title, className, ...props }: MediaItemProps) => {
+	if (!item?.asset?._ref) {
+		return null;
+	}
+
+	const isVideoItem = isVideo(item);
+	const src = isVideoItem
+		? `https://cdn.sanity.io/files/${
+				import.meta.env.VITE_SANITY_PROJECT_ID
+			}/${import.meta.env.VITE_SANITY_DATASET}/${item.asset._ref
+				.replace("file-", "")
+				.replace("-mp4", ".mp4")
+				.replace("-webm", ".webm")
+				.replace("-ogg", ".ogg")
+				.replace("-mov", ".mov")}`
+		: urlFor(item).url();
+
+	if (isVideoItem) {
+		return (
+			<Video
+				className={className}
+				src={src}
+				alt={item.alt || title || "Project video"}
+				ratio="16/9"
+				{...props}
+			/>
+		);
+	}
+
+	return (
+		<Image
+			className={className}
+			ratio="16/9"
+			src={src}
+			alt={item.alt || title || "Project image"}
+			{...props}
+		/>
+	);
+};
+
+const MainImage = ({
+	item,
+	title,
+	direction,
+	onDrag,
+}: {
+	item?: NonNullable<Projects["gallery"]>[0];
+	title?: string;
+	direction: number;
+	onDrag: (
+		event: MouseEvent | TouchEvent | PointerEvent,
+		info: PanInfo,
+	) => void;
 }) => {
+	// Define animation variants without using string for position
+	const variants = {
+		enter: (direction: number) => ({
+			x: direction > 0 ? "100%" : "-100%",
+			opacity: 0,
+		}),
+		center: {
+			x: 0,
+			opacity: 1,
+		},
+		exit: (direction: number) => ({
+			x: direction > 0 ? "-100%" : "100%",
+			opacity: 0,
+		}),
+	};
+
+	if (!item) return null;
+
 	return (
 		<div className="relative inline-flex w-full flex-col items-start justify-start gap-1.5 self-stretch overflow-hidden md:gap-2.5">
-			<AnimatePresence mode="wait">
+			<div className="relative aspect-video w-full">
 				<motion.div
-					key={index}
-					initial={{ opacity: 0.2, filter: "blur(3px)" }}
-					animate={{ opacity: 1, filter: "blur(0px)" }}
-					transition={{ duration: 0.3, ease: "easeInOut" }}
-					className="w-full"
+					className="relative w-full cursor-grab"
+					drag="x"
+					dragElastic={0.3}
+					dragConstraints={{ left: 0, right: 0 }}
+					onDragEnd={onDrag}
+					whileTap={{ cursor: "grabbing" }}
+					style={{ position: "relative", height: "100%" }}
 				>
-					<Image
-						className="max-h-[526px] w-full"
-						ratio="16/9"
-						src={
-							cover?.[index]?.asset?._ref ? urlFor(cover?.[index]).url() : ""
-						}
-						alt={title || "Project cover image"}
-						draggable={false}
-					/>
+					<div style={{ position: "absolute", inset: 0 }}>
+						<AnimatePresence initial={false} mode="sync" custom={direction}>
+							<motion.div
+								key={item.asset?._ref}
+								custom={direction}
+								variants={variants}
+								initial="enter"
+								animate="center"
+								exit="exit"
+								transition={{
+									x: { stiffness: 300 },
+									opacity: { duration: 0.2 },
+								}}
+								style={{
+									position: "absolute",
+									top: 0,
+									left: 0,
+									width: "100%",
+									height: "100%",
+								}}
+							>
+								<MediaItem
+									className="h-full w-full object-cover"
+									item={item}
+									title={title}
+									draggable={false}
+								/>
+							</motion.div>
+						</AnimatePresence>
+					</div>
 				</motion.div>
-			</AnimatePresence>
+			</div>
 		</div>
 	);
 };
@@ -286,19 +462,26 @@ const Carousel = ({
 }) => {
 	return (
 		<div className="inline-flex w-full items-center gap-1.5 overflow-x-scroll md:gap-2.5">
-			{images?.map((image, index) => (
-				<Image
-					key={image.asset?._ref}
+			{images?.map((item, index) => (
+				<button
+					key={item.asset?._ref}
 					className={clsx(
-						"max-h-[61px] max-w-[108px] cursor-pointer",
+						"h-full max-h-[61px] max-w-[108px] cursor-pointer border-0 bg-white p-0",
 						currentIndex !== index && "opacity-50",
 					)}
 					onClick={() => setCurrentIndex(index)}
-					ratio="16/9"
-					src={image.asset?._ref ? urlFor(image).url() : ""}
-					alt={image.alt || ""}
-					draggable={false}
-				/>
+					type="button"
+				>
+					<MediaItem
+						item={item}
+						alt={item.alt || ""}
+						draggable={false}
+						className="h-full w-full bg-white object-cover"
+						ratio="16/9"
+						controls={false}
+						muted={true}
+					/>
+				</button>
 			))}
 		</div>
 	);
@@ -313,14 +496,22 @@ const ProjectInfo = ({
 	setIsOpen: (isOpen: boolean) => void;
 	project: ProjectWithCategories;
 }) => {
+	const { getLocalizedContent } = useLanguage();
+
+	const categoryTitles = project.expandedCategories
+		?.map((category) => {
+			const frTitle = category.title?.fr || "";
+			const enTitle = category.title?.en || "";
+			return getLocalizedContent(frTitle, enTitle);
+		})
+		.filter(Boolean)
+		.join(", ");
+
 	return (
 		<div className="inline-flex items-center justify-between self-stretch">
 			<div className="hidden w-[122px] items-start justify-start gap-1.5 py-0.5 md:flex md:gap-2.5">
 				<h3 className="justify-start font-mono text-sm leading-[21px]">
-					{project.expandedCategories
-						?.map((category) => category.title?.fr || category.title?.en || "")
-						.filter(Boolean)
-						.join(", ")}
+					{categoryTitles}
 				</h3>
 			</div>
 			<div className="flex w-[122px] items-start justify-center gap-1.5 py-0.5 md:gap-2.5">
@@ -349,7 +540,14 @@ const ProjectInfo = ({
 const ProjectDescription = ({
 	isOpen,
 	description,
-}: { isOpen: boolean; description: string }) => {
+}: { isOpen: boolean; description: Projects["description"] }) => {
+	// Importing the useLanguage hook to get current language
+	const { getLocalizedContent } = useLanguage();
+
+	const localizedDescription = description
+		? getLocalizedContent(description.fr || "", description.en || "")
+		: "";
+
 	return (
 		<motion.div
 			initial={false}
@@ -365,7 +563,7 @@ const ProjectDescription = ({
 			className="overflow-hidden"
 		>
 			<p className="py-2 text-center font-mono text-xs leading-[18px] md:text-sm md:leading-[21px]">
-				{description}
+				{localizedDescription}
 			</p>
 		</motion.div>
 	);

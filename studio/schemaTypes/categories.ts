@@ -1,3 +1,4 @@
+import { orderRankField } from "@sanity/orderable-document-list";
 import { defineField, defineType } from "sanity";
 
 export default defineType({
@@ -5,6 +6,7 @@ export default defineType({
   title: "Categories",
   type: "document",
   fields: [
+    orderRankField({ type: "categories" }),
     defineField({
       name: "title",
       title: "Title",
@@ -29,7 +31,7 @@ export default defineType({
       title: "Slug",
       type: "slug",
       options: {
-        source: (doc: any) => doc.title?.fr || "",
+        source: (doc: any) => doc.title?.en || "",
         maxLength: 96,
       },
       validation: (Rule: any) => Rule.required(),
@@ -37,12 +39,12 @@ export default defineType({
   ],
   preview: {
     select: {
-      title: "title.fr",
-      titleEn: "title.en",
+      title: "title.en",
+      titleFr: "title.fr",
     },
-    prepare({ title, titleEn }) {
+    prepare({ title, titleFr }) {
       return {
-        title: title || titleEn || "No title",
+        title: title || titleFr || "No title",
       };
     },
   },

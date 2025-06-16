@@ -1,9 +1,0 @@
----
-description: Best practices for routing with TanStack React Router
-globs: **/*.{ts,tsx,js,jsx}
-alwaysApply: false
----
-- Use route loaders for data fetching
-- Implement proper error boundaries for routes
-- Utilize route parameters and search params effectively
-- Keep route configurations DRY with route groups

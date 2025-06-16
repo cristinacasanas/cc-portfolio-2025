@@ -14,6 +14,11 @@ export const CategoriesSidebar = () => {
 		queryFn: () => client.fetch<Categories[]>(getAllCategories),
 	});
 
+	const { data: networkData } = useQuery({
+		queryKey: ["network"],
+		queryFn: () => client.fetch(`*[_type == "network"][0] | order(orderRank)`),
+	});
+
 	return (
 		<Sidebar position="left">
 			<div className="flex flex-1 flex-col items-start justify-between pt-14">
@@ -55,28 +60,19 @@ export const CategoriesSidebar = () => {
 					</div>
 				</div>
 				<div className="flex flex-col items-start justify-start gap-4 font-serif">
-					<a
-						href="https://instagram.com"
-						target="_blank"
-						rel="noopener noreferrer"
-						className="justify-start font-normal text-color-black-solid leading-none"
-					>
-						↗ Instagram
-					</a>
-					<a
-						href="https://cosmos.com"
-						target="_blank"
-						rel="noopener noreferrer"
-						className="justify-start font-normal text-color-black-solid leading-none"
-					>
-						↗ Cosmos
-					</a>
-					<a
-						href="mailto:contact@example.com"
-						className="justify-start font-normal text-color-black-solid leading-none"
-					>
-						↗ Mail
-					</a>
+					{networkData?.links?.map((link: { title: string; url: string }) => (
+						<a
+							key={link.url}
+							href={link.url}
+							target={link.url.startsWith("http") ? "_blank" : undefined}
+							rel={
+								link.url.startsWith("http") ? "noopener noreferrer" : undefined
+							}
+							className="justify-start font-normal text-color-black-solid leading-none"
+						>
+							↗ {link.title}
+						</a>
+					))}
 				</div>
 			</div>
 		</Sidebar>

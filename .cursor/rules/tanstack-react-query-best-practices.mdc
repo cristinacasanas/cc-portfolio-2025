@@ -1,9 +1,0 @@
----
-description: Best practices for managing data fetching and caching with TanStack React
-globs: **/*.{ts,tsx,js,jsx}
-alwaysApply: false
----
-- Use query keys effectively for caching and refetching
-- Implement proper error handling and loading states
-- Utilize query client for global configuration
-- Use mutations for side effects and optimistic updates

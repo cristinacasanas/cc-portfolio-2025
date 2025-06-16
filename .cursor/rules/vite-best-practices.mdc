@@ -1,9 +1,0 @@
----
-description: Best practices for using Vite as a build tool
-globs: **/*.{ts,tsx,js,jsx}
-alwaysApply: false
----
-- Use Vite plugins for enhanced functionality
-- Implement proper environment variable management
-- Utilize Vite's hot module replacement for development
-- Keep build configurations optimized for production

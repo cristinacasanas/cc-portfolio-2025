@@ -37,6 +37,7 @@ export const InfiniteImageGrid = () => {
 	const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 	const [momentum, setMomentum] = useState({ x: 0, y: 0 });
 	const [isLoading, setIsLoading] = useState(false);
+	console.log(isLoading);
 	const [imagesSizes, setImagesSizes] = useState<
 		Record<string, { width: number; height: number }>
 	>({});
@@ -514,7 +515,7 @@ export const InfiniteImageGrid = () => {
 							height: `${actualCellSize}px`,
 						}}
 					>
-						<div className="text-gray-300 text-sm">Chargement...</div>
+						<div className="text-gray-300 text-sm" />
 					</div>
 				);
 			}
@@ -606,11 +607,6 @@ export const InfiniteImageGrid = () => {
 					WebkitTapHighlightColor: "transparent",
 				}}
 			>
-				{isLoading && (
-					<div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
-						Chargement...
-					</div>
-				)}
 				<div className="absolute inset-0">{renderedCells}</div>
 			</div>
 		</div>

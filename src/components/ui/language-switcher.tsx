@@ -1,4 +1,5 @@
 import { useNavigate, useRouter } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 export const LanguageSwitcher = () => {
@@ -7,9 +8,18 @@ export const LanguageSwitcher = () => {
 	const navigate = useNavigate();
 	const currentLang = i18n.language;
 
-	const changeLanguage = (lng: string) => {
-		i18n.changeLanguage(lng);
+	// Ensure URL query param is in sync with current language on component mount
+	useEffect(() => {
+		const queryLang = router.state.location.search.lang;
+		if (
+			queryLang !== currentLang &&
+			(currentLang === "en" || currentLang === "fr")
+		) {
+			updateUrlQueryParam(currentLang);
+		}
+	}, []);
 
+	const updateUrlQueryParam = (lng: string) => {
 		const currentPath = router.state.location.pathname;
 		const currentSearch = { ...router.state.location.search };
 
@@ -26,6 +36,14 @@ export const LanguageSwitcher = () => {
 			search: newSearch,
 			replace: true,
 		});
+	};
+
+	const changeLanguage = (lng: string) => {
+		// Change the language in i18next (this will persist in localStorage/cookie)
+		i18n.changeLanguage(lng);
+
+		// Update URL query param to reflect language change
+		updateUrlQueryParam(lng);
 	};
 
 	return (
