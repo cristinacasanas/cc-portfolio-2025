@@ -15,6 +15,16 @@ type ProjectWithCategories = Projects & {
 	expandedCategories?: Categories[];
 };
 
+// Helper to determine if a media item is a video based on mimeType or file extension
+const isVideo = (item: { asset?: { _ref?: string } }): boolean => {
+	if (!item?.asset?._ref) return false;
+
+	// Check if file extension suggests it's a video (mp4, webm, etc.)
+	const ref = item.asset._ref;
+	// File references typically start with "file-" instead of "image-"
+	return ref.startsWith("file-");
+};
+
 // Référence globale pour suivre tous les projets et leurs positions
 export const projectsRegistry = {
 	projects: new Map<string, { element: HTMLDivElement; position: number }>(),
@@ -257,6 +267,91 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 	);
 };
 
+// Video component with the same props interface as Image
+const Video = ({
+	className,
+	src,
+	alt,
+	ratio,
+	...props
+}: {
+	className?: string;
+	src: string;
+	alt: string;
+	ratio?: "16/9" | "4/3" | "1/1" | "3/4" | "9/16" | "4/5";
+}) => {
+	const aspectRatioClasses: Record<string, string> = {
+		"16/9": "aspect-video",
+		"4/3": "aspect-[4/3]",
+		"1/1": "aspect-square",
+		"3/4": "aspect-[3/4]",
+		"9/16": "aspect-[9/16]",
+		"4/5": "aspect-[4/5]",
+	};
+
+	const aspectClass = ratio ? aspectRatioClasses[ratio] : "";
+
+	return (
+		<video
+			className={clsx(aspectClass, "h-full w-full object-cover", className)}
+			src={src}
+			title={alt}
+			playsInline
+			autoPlay
+			loop
+			{...props}
+		>
+			<track kind="captions" />
+			Your browser does not support the video tag.
+		</video>
+	);
+};
+
+// Media item component that handles both images and videos
+interface MediaItemProps {
+	item: NonNullable<Projects["gallery"]>[0];
+	title?: string;
+	className?: string;
+	[key: string]: unknown;
+}
+
+const MediaItem = ({ item, title, className, ...props }: MediaItemProps) => {
+	if (!item?.asset?._ref) {
+		return null;
+	}
+
+	const isVideoItem = isVideo(item);
+	const src = isVideoItem
+		? `https://cdn.sanity.io/files/${
+				import.meta.env.VITE_SANITY_PROJECT_ID
+			}/${import.meta.env.VITE_SANITY_DATASET}/${item.asset._ref
+				.replace("file-", "")
+				.replace("-mp4", ".mp4")}`
+		: urlFor(item).url();
+
+	if (isVideoItem) {
+		return (
+			<Video
+				className={className}
+				src={src}
+				alt={item.alt || title || "Project video"}
+				ratio="16/9"
+				{...props}
+			/>
+		);
+	}
+
+	return (
+		<Image
+			className={className}
+			ratio="16/9"
+			src={src}
+			alt={item.alt || title || "Project image"}
+			{...props}
+		/>
+	);
+};
+
 const CoverImage = ({
 	cover,
 	title,
@@ -303,6 +398,9 @@ const CoverImage = ({
 		}
 	};
 
+	if (!cover || !cover[index]) return null;
+	const currentItem = cover[index];
+
 	return (
 		<div className="relative inline-flex w-full flex-col items-start justify-start gap-1.5 self-stretch overflow-hidden md:gap-2.5">
 			<div className="relative aspect-video w-full">
@@ -336,15 +434,10 @@ const CoverImage = ({
 									height: "100%",
 								}}
 							>
-								<Image
+								<MediaItem
 									className="h-full w-full object-cover"
-									ratio="16/9"
-									src={
-										cover?.[index]?.asset?._ref
-											? urlFor(cover?.[index]).url()
-											: ""
-									}
-									alt={title || "Project image"}
+									item={currentItem}
+									title={title}
 									draggable={false}
 								/>
 							</motion.div>
@@ -367,19 +460,26 @@ const Carousel = ({
 }) => {
 	return (
 		<div className="inline-flex w-full items-center gap-1.5 overflow-x-scroll md:gap-2.5">
-			{images?.map((image, index) => (
-				<Image
-					key={image.asset?._ref}
+			{images?.map((item, index) => (
+				<button
+					key={item.asset?._ref}
 					className={clsx(
-						"max-h-[61px] max-w-[108px] cursor-pointer",
+						"max-h-[61px] max-w-[108px] cursor-pointer border-0 p-0 bg-transparent",
 						currentIndex !== index && "opacity-50",
 					)}
 					onClick={() => setCurrentIndex(index)}
-					ratio="16/9"
-					src={image.asset?._ref ? urlFor(image).url() : ""}
-					alt={image.alt || ""}
-					draggable={false}
-				/>
+					type="button"
+				>
+					<MediaItem
+						item={item}
+						alt={item.alt || ""}
+						draggable={false}
+						className="h-full w-full object-cover"
+						ratio="16/9"
+						controls={false}
+						muted={true}
+					/>
+				</button>
 			))}
 		</div>
 	);

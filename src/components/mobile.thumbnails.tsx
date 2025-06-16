@@ -382,9 +382,9 @@ export const MobileThumbnails = () => {
 				// Don't change during selection lock
 				if (selectionLockRef.current) return;
 
-				// Enforce strong cooldown
+				// More lenient cooldown to allow smoother transitions
 				const now = Date.now();
-				if (now - lastUpdateTimeRef.current < updateCooldownMs) {
+				if (now - lastUpdateTimeRef.current < updateCooldownMs / 2) {
 					return;
 				}
 
@@ -401,8 +401,11 @@ export const MobileThumbnails = () => {
 				const currentScore =
 					Math.abs(containerCenter - thumbCenter) / containerRect.width;
 
-				// Strong hysteresis - only change if new position is significantly better
-				if (currentScore > stabilityThresholdRef.current - stabilityThreshold) {
+				// More responsive hysteresis - only change if new position is better
+				if (
+					currentScore >
+					stabilityThresholdRef.current - stabilityThreshold / 1.5
+				) {
 					return;
 				}
 
@@ -435,7 +438,7 @@ export const MobileThumbnails = () => {
 					// Delayed scroll to ensure state is updated first
 					scrollTimeoutRef.current = setTimeout(() => {
 						scrollToThumbnail(projectId, false);
-					}, 100);
+					}, 50); // Faster response time
 				}
 			}
 		},
@@ -480,19 +483,21 @@ export const MobileThumbnails = () => {
 			return;
 		}
 
-		// For non-boundary positions, use normal detection
+		// For non-boundary positions, use improved visibility detection
 		const containerRect = containerRef.current.getBoundingClientRect();
 		const containerCenter = containerRect.left + containerRect.width / 2;
+		const containerWidth = containerRect.width;
 
+		// Track best match with better visibility scoring
 		let bestMatch = {
 			projectId: "",
-			distance: Number.POSITIVE_INFINITY,
+			score: Number.NEGATIVE_INFINITY,
 		};
 
 		thumbnailRefs.current.forEach((thumbEl, projectId) => {
 			const thumbRect = thumbEl.getBoundingClientRect();
 
-			// Skip if element isn't significantly visible
+			// Skip if element isn't visible at all
 			if (
 				thumbRect.right < containerRect.left ||
 				thumbRect.left > containerRect.right
@@ -500,22 +505,28 @@ export const MobileThumbnails = () => {
 				return;
 			}
 
-			// Skip if less than 40% visible
+			// Calculate visible portion
 			const visibleLeft = Math.max(thumbRect.left, containerRect.left);
 			const visibleRight = Math.min(thumbRect.right, containerRect.right);
 			const visibleWidth = Math.max(0, visibleRight - visibleLeft);
 			const visibleRatio = visibleWidth / thumbRect.width;
 
-			if (visibleRatio < 0.4) return;
+			// Skip if less than 30% visible
+			if (visibleRatio < 0.3) return;
 
-			// Simple distance from center calculation
+			// Calculate centrality (0 = perfect center, 1 = edge)
 			const thumbCenter = thumbRect.left + thumbRect.width / 2;
-			const distance = Math.abs(containerCenter - thumbCenter);
+			const distanceFromCenter = Math.abs(containerCenter - thumbCenter);
+			const centrality =
+				1 - Math.min(1, distanceFromCenter / (containerWidth / 2));
 
-			if (distance < bestMatch.distance) {
+			// Combined score: visibility + centrality (0-2 range, higher is better)
+			const score = visibleRatio + centrality;
+
+			if (score > bestMatch.score) {
 				bestMatch = {
 					projectId,
-					distance,
+					score,
 				};
 			}
 		});
@@ -523,7 +534,8 @@ export const MobileThumbnails = () => {
 		// Only update if we found a valid match and it's different from current
 		if (
 			bestMatch.projectId &&
-			lastVisibleProjectRef.current !== bestMatch.projectId
+			lastVisibleProjectRef.current !== bestMatch.projectId &&
+			bestMatch.score > 0.8 // Only choose items with good scores
 		) {
 			updateVisibleProject(bestMatch.projectId);
 		}
@@ -596,6 +608,8 @@ export const MobileThumbnails = () => {
 
 		// Use requestAnimationFrame for smoother scroll handling
 		let rafId: number | null = null;
+		let lastProcessTime = 0;
+		const THROTTLE_MS = 50; // Process at most every 50ms during active scrolling
 
 		const handleScroll = () => {
 			// Cancel any pending animation frame
@@ -609,6 +623,13 @@ export const MobileThumbnails = () => {
 			// Use requestAnimationFrame to debounce scroll handling
 			rafId = requestAnimationFrame(() => {
 				const now = Date.now();
+
+				// Throttle scroll processing during rapid scrolling
+				if (now - lastProcessTime < THROTTLE_MS) {
+					return;
+				}
+
+				lastProcessTime = now;
 
 				// Check for boundary positions during active scrolling
 				const container = containerRef.current;
@@ -680,8 +701,8 @@ export const MobileThumbnails = () => {
 						} else if (!isScrollingProgrammatically.current) {
 							detectCenteredThumbnail();
 						}
-					}, 80); // Faster stability timing
-				}, 80); // Faster scroll end detection
+					}, 120); // Slightly longer stability timing for smoother transitions
+				}, 100); // Slightly longer scroll end detection for better stability
 			});
 		};
 
@@ -727,18 +748,13 @@ export const MobileThumbnails = () => {
 		updateVisibleProject,
 	]);
 
-	// Handle layout changes and window resizing
 	useEffect(() => {
 		const handleResize = () => {
-			// Force update visible project when layout changes
 			const currentProject = lastVisibleProjectRef.current;
 			if (currentProject) {
-				// Reset all state on resize
 				resetScrollState();
 
-				// Delay to let layout stabilize
 				setTimeout(() => {
-					// Check boundary situation
 					checkBoundaryPosition();
 					scrollToThumbnail(currentProject, true);
 				}, 200);
@@ -774,7 +790,6 @@ export const MobileThumbnails = () => {
 		};
 	}, [scrollToThumbnail, resetScrollState, checkBoundaryPosition]);
 
-	// Cleanup on unmount or data change
 	useEffect(() => {
 		thumbnailRefs.current.clear();
 		lastVisibleProjectRef.current = null;
@@ -790,20 +805,17 @@ export const MobileThumbnails = () => {
 		};
 	}, [sortedProjects, resetScrollState]);
 
-	// Enhanced project opacity calculation with better contrast
 	const getProjectOpacity = useCallback(
 		(projectId: string, index: number) => {
-			console.log("getProjectOpacity", projectId, index);
 			if (!projectId) return 0;
 
 			const isVisible = projectId === visibleProject;
 
-			// No special handling for first two items
 			if (category) {
 				return isVisible ? 1 : 0.6;
 			}
 
-			return isVisible ? 1 : 0.35; // Stronger contrast
+			return isVisible ? 1 : 0.35;
 		},
 		[visibleProject, category],
 	);
@@ -820,11 +832,14 @@ export const MobileThumbnails = () => {
 			const isFirst = index === 0;
 			const isSecond = index === 1;
 			const isFirstOrSecond = isFirst || isSecond;
+			const isBoundary = isBoundaryItem(projectId) !== null;
 
-			// Use same animation values for all items, no special handling for first two
-			const scaleValue = isActive ? 1.05 : 0.97;
-			const yOffset = isActive ? -2 : 1;
 			const filterValue = isActive ? "brightness(1.05)" : "brightness(0.95)";
+
+			// Optimize animations based on position
+			const transitionDuration = isFirstOrSecond || isBoundary ? 0.15 : 0.2;
+			const opacityDuration = isFirstOrSecond || isBoundary ? 0.1 : 0.15;
+			const easeType = "easeInOut";
 
 			return (
 				<motion.div
@@ -834,17 +849,21 @@ export const MobileThumbnails = () => {
 							thumbnailRefs.current.set(projectId, el);
 						}
 					}}
+					initial={{
+						opacity: 0.35,
+						y: 1,
+						filter: "brightness(0.95)",
+					}}
 					animate={{
 						opacity: getProjectOpacity(projectId, index),
-						scale: scaleValue,
-						y: yOffset,
-						filter: filterValue,
 					}}
 					transition={{
-						duration: isFirstOrSecond ? 0.15 : 0.2,
-						ease: "easeOut",
-						opacity: { duration: isFirstOrSecond ? 0.1 : 0.15 },
+						duration: transitionDuration,
+						ease: easeType,
+						opacity: { duration: opacityDuration },
+						type: "tween",
 					}}
+					layout={false} // Disable layout animations for better performance
 					className={clsx("h-full w-full", isActive ? "z-10" : "z-0")}
 					onClick={() => {
 						if (projectId) {
@@ -862,14 +881,14 @@ export const MobileThumbnails = () => {
 			resetScrollState,
 			updateVisibleProject,
 			getProjectOpacity,
-			sortedProjects.length,
+			isBoundaryItem,
 		],
 	);
 
 	return (
 		<div
 			ref={containerRef}
-			className="relative mt-2 flex h-auto w-screen items-start gap-1.5 self-stretch overflow-x-auto scroll-smooth pr-3 pb-1 will-change-scroll md:hidden"
+			className="relative mt-2 flex h-auto w-full items-start gap-1.5 self-stretch overflow-x-auto scroll-smooth pb-1 will-change-scroll md:hidden"
 		>
 			{sortedProjects.map(renderThumbnail).filter(Boolean)}
 		</div>

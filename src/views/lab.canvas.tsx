@@ -514,7 +514,7 @@ export const InfiniteImageGrid = () => {
 							height: `${actualCellSize}px`,
 						}}
 					>
-						<div className="text-gray-300 text-sm">Chargement...</div>
+						<div className="text-gray-300 text-sm" />
 					</div>
 				);
 			}
@@ -606,11 +606,6 @@ export const InfiniteImageGrid = () => {
 					WebkitTapHighlightColor: "transparent",
 				}}
 			>
-				{isLoading && (
-					<div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
-						Chargement...
-					</div>
-				)}
 				<div className="absolute inset-0">{renderedCells}</div>
 			</div>
 		</div>

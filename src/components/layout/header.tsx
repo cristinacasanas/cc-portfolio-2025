@@ -31,7 +31,7 @@ export const Header = () => {
 	return (
 		<header
 			className={clsx(
-				"fixed top-0 right-0 left-0 z-50 inline-flex h-[var(--header-height)] w-screen border-black border-border border-b bg-background-primary/80 px-1.5 backdrop-blur-sm md:px-3",
+				"fixed top-0 right-0 left-0 z-50 inline-flex h-[var(--header-height)] w-screen border-black border-border border-b bg-background-primary/80 px-4 backdrop-blur-sm md:px-3",
 				isOpen && "bg-background-primary",
 			)}
 		>
@@ -46,7 +46,7 @@ export const Header = () => {
 					</Link>
 				</div>
 
-				<div className="hidden w-16 items-center justify-center gap-2.5 px-1 py-0.5 md:flex">
+				<div className="hidden w-fit items-center justify-center gap-2.5 px-1 py-0.5 md:flex">
 					{!isOpen ? (
 						<button
 							type="button"

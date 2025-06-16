@@ -1,9 +1,0 @@
----
-description: Best practices for content management with Sanity
-globs: **/*.{ts,tsx,js,jsx}
-alwaysApply: false
----
-- Use Sanity client for fetching and mutating data
-- Implement proper image URL generation with @sanity/image-url
-- Utilize Sanity preview kit for live previews
-- Keep schema definitions organized and reusable

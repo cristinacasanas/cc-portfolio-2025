@@ -16,7 +16,7 @@ export const CategoriesSidebar = () => {
 
 	const { data: networkData } = useQuery({
 		queryKey: ["network"],
-		queryFn: () => client.fetch(`*[_type == "network"][0]`),
+		queryFn: () => client.fetch(`*[_type == "network"][0] | order(orderRank)`),
 	});
 
 	return (

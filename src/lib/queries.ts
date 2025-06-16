@@ -35,17 +35,17 @@ export const getProjectById = (projectId: string) => `
 /**
  * Obtenir toutes les catégories
  */
-export const getAllCategories = `*[_type == "categories"]`;
+export const getAllCategories = `*[_type == "categories"] | order(orderRank)`;
 
 /**
  * Obtenir tous les projets simples (sans les catégories étendues)
  */
-export const getAllProjectsSimple = `*[_type == "projects"]`;
+export const getAllProjectsSimple = `*[_type == "projects"] | order(orderRank)`;
 
 /**
  * Obtenir tous les projets simples filtrés par catégorie
  * @param categorySlug - Slug ou ID de la catégorie
  */
 export const getProjectsByCategorySimple = (categorySlug: string) => `
-  *[_type == "projects" && references(*[_type == "categories" && (slug.current == "${categorySlug}" || _id == "${categorySlug}")]._id)]
+  *[_type == "projects" && references(*[_type == "categories" && (slug.current == "${categorySlug}" || _id == "${categorySlug}")]._id)] | order(orderRank)
 `;
