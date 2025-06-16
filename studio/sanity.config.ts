@@ -21,9 +21,23 @@ export default defineConfig({
           .items([
             orderableDocumentListDeskItem({type: 'categories', S, context, title: 'Categories', icon: Folder}),
             orderableDocumentListDeskItem({type: 'projects', S, context, title: 'Projects', icon: Folder}),
-            orderableDocumentListDeskItem({type: 'about', S, context, title: 'About', icon: Folder}),
+            S.listItem()
+              .title('About')
+              .icon(Folder)
+              .child(
+                S.documentList()
+                  .title('About')
+                  .filter('_type == "about"')
+              ),
             orderableDocumentListDeskItem({type: 'network', S, context, title: 'Network', icon: Folder}),
-            orderableDocumentListDeskItem({type: 'lab', S, context, title: 'Lab', icon: Folder}),
+            S.listItem()
+              .title('Lab')
+              .icon(Folder)
+              .child(
+                S.documentList()
+                  .title('Lab')
+                  .filter('_type == "lab"')
+              ),
           ])
       },
     })
