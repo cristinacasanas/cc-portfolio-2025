@@ -1,12 +1,13 @@
 import Plus from "@/components/ui/icons/plus";
 import { Image } from "@/components/ui/image";
+import { useLanguage } from "@/hooks/useLanguage";
 import { urlFor } from "@/lib/sanity";
 import {
 	clear as clearScrollService,
 	registerProject,
 } from "@/lib/scroll.service";
 import clsx from "clsx";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, type PanInfo, motion } from "framer-motion";
 import React, { useEffect, useRef } from "react";
 import type { Categories, Projects } from "studio/sanity.types";
 
@@ -49,8 +50,24 @@ export const projectsRegistry = {
 const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 	const [isOpen, setIsOpen] = React.useState(false);
 	const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
+	const [direction, setDirection] = React.useState(0);
 	const ref = useRef<HTMLDivElement>(null);
 	const projectId = project.slug?.current || project._id;
+
+	// Function to handle image navigation
+	const navigateImage = (newIndexInput: number) => {
+		const galleryLength = project.gallery?.length || 1;
+		let newIndex = newIndexInput;
+
+		if (newIndex < 0) {
+			newIndex = galleryLength - 1;
+		} else if (newIndex >= galleryLength) {
+			newIndex = 0;
+		}
+
+		setDirection(newIndex > currentImageIndex ? 1 : -1);
+		setCurrentImageIndex(newIndex);
+	};
 
 	// Enregistrer la position du projet lors du montage
 	useEffect(() => {
@@ -226,17 +243,16 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 				cover={project.gallery}
 				title={project.title}
 				index={currentImageIndex}
+				direction={direction}
+				navigateImage={navigateImage}
 			/>
 			<Carousel
 				images={project.gallery}
 				currentIndex={currentImageIndex}
-				setCurrentIndex={setCurrentImageIndex}
+				setCurrentIndex={navigateImage}
 			/>
 			<ProjectInfo isOpen={isOpen} setIsOpen={setIsOpen} project={project} />
-			<ProjectDescription
-				isOpen={isOpen}
-				description={project.description?.fr || ""}
-			/>
+			<ProjectDescription isOpen={isOpen} description={project.description} />
 		</div>
 	);
 };
@@ -245,32 +261,97 @@ const CoverImage = ({
 	cover,
 	title,
 	index,
+	direction,
+	navigateImage,
 }: {
 	cover: Projects["gallery"];
 	title?: string;
 	index: number;
+	direction: number;
+	navigateImage: (newIndex: number) => void;
 }) => {
+	// Define animation variants without using string for position
+	const variants = {
+		enter: (direction: number) => ({
+			x: direction > 0 ? "100%" : "-100%",
+			opacity: 0,
+		}),
+		center: {
+			x: 0,
+			opacity: 1,
+		},
+		exit: (direction: number) => ({
+			x: direction > 0 ? "-100%" : "100%",
+			opacity: 0,
+		}),
+	};
+
+	// Handle drag end event
+	const handleDragEnd = (
+		_: MouseEvent | TouchEvent | PointerEvent,
+		info: PanInfo,
+	) => {
+		const { offset, velocity } = info;
+		const swipeThreshold = 50;
+
+		if (offset.x > swipeThreshold || velocity.x > 800) {
+			// Swipe right - go to previous image
+			navigateImage(index - 1);
+		} else if (offset.x < -swipeThreshold || velocity.x < -800) {
+			// Swipe left - go to next image
+			navigateImage(index + 1);
+		}
+	};
+
 	return (
 		<div className="relative inline-flex w-full flex-col items-start justify-start gap-1.5 self-stretch overflow-hidden md:gap-2.5">
-			<AnimatePresence mode="wait">
+			<div className="relative aspect-video w-full">
 				<motion.div
-					key={index}
-					initial={{ opacity: 0.2, filter: "blur(3px)" }}
-					animate={{ opacity: 1, filter: "blur(0px)" }}
-					transition={{ duration: 0.3, ease: "easeInOut" }}
-					className="w-full"
+					className="relative w-full cursor-grab"
+					drag="x"
+					dragElastic={0.3}
+					dragConstraints={{ left: 0, right: 0 }}
+					onDragEnd={handleDragEnd}
+					whileTap={{ cursor: "grabbing" }}
+					style={{ position: "relative", height: "100%" }}
 				>
-					<Image
-						className="max-h-[526px] w-full"
-						ratio="16/9"
-						src={
-							cover?.[index]?.asset?._ref ? urlFor(cover?.[index]).url() : ""
-						}
-						alt={title || "Project cover image"}
-						draggable={false}
-					/>
+					<div style={{ position: "absolute", inset: 0 }}>
+						<AnimatePresence initial={false} mode="sync" custom={direction}>
+							<motion.div
+								key={index}
+								custom={direction}
+								variants={variants}
+								initial="enter"
+								animate="center"
+								exit="exit"
+								transition={{
+									x: { stiffness: 300 },
+									opacity: { duration: 0.2 },
+								}}
+								style={{
+									position: "absolute",
+									top: 0,
+									left: 0,
+									width: "100%",
+									height: "100%",
+								}}
+							>
+								<Image
+									className="h-full w-full object-cover"
+									ratio="16/9"
+									src={
+										cover?.[index]?.asset?._ref
+											? urlFor(cover?.[index]).url()
+											: ""
+									}
+									alt={title || "Project image"}
+									draggable={false}
+								/>
+							</motion.div>
+						</AnimatePresence>
+					</div>
 				</motion.div>
-			</AnimatePresence>
+			</div>
 		</div>
 	);
 };
@@ -313,14 +394,22 @@ const ProjectInfo = ({
 	setIsOpen: (isOpen: boolean) => void;
 	project: ProjectWithCategories;
 }) => {
+	const { getLocalizedContent } = useLanguage();
+
+	const categoryTitles = project.expandedCategories
+		?.map((category) => {
+			const frTitle = category.title?.fr || "";
+			const enTitle = category.title?.en || "";
+			return getLocalizedContent(frTitle, enTitle);
+		})
+		.filter(Boolean)
+		.join(", ");
+
 	return (
 		<div className="inline-flex items-center justify-between self-stretch">
 			<div className="hidden w-[122px] items-start justify-start gap-1.5 py-0.5 md:flex md:gap-2.5">
 				<h3 className="justify-start font-mono text-sm leading-[21px]">
-					{project.expandedCategories
-						?.map((category) => category.title?.fr || category.title?.en || "")
-						.filter(Boolean)
-						.join(", ")}
+					{categoryTitles}
 				</h3>
 			</div>
 			<div className="flex w-[122px] items-start justify-center gap-1.5 py-0.5 md:gap-2.5">
@@ -349,7 +438,14 @@ const ProjectInfo = ({
 const ProjectDescription = ({
 	isOpen,
 	description,
-}: { isOpen: boolean; description: string }) => {
+}: { isOpen: boolean; description: Projects["description"] }) => {
+	// Importing the useLanguage hook to get current language
+	const { getLocalizedContent } = useLanguage();
+
+	const localizedDescription = description
+		? getLocalizedContent(description.fr || "", description.en || "")
+		: "";
+
 	return (
 		<motion.div
 			initial={false}
@@ -365,7 +461,7 @@ const ProjectDescription = ({
 			className="overflow-hidden"
 		>
 			<p className="py-2 text-center font-mono text-xs leading-[18px] md:text-sm md:leading-[21px]">
-				{description}
+				{localizedDescription}
 			</p>
 		</motion.div>
 	);

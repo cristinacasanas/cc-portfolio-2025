@@ -56,7 +56,7 @@ export const Header = () => {
 							}}
 							className="cursor-pointer justify-start font-serif"
 						>
-							{t("about")}
+							{currentLang === "fr" ? "À Propos" : "About"}
 						</button>
 					) : (
 						<button
@@ -93,7 +93,7 @@ export const Header = () => {
 				<div className="flex items-center justify-center gap-2.5 md:hidden">
 					<button
 						type="button"
-						className="relative cursor-pointer"
+						className="relative w-fit cursor-pointer"
 						onClick={() => {
 							if (isOpen) {
 								toggleOverlay();

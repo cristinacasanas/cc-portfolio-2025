@@ -24,6 +24,10 @@ export default defineType({
               name: "url",
               title: "URL",
               type: "url",
+              validation: (Rule: any) => 
+                Rule.uri({
+                  scheme: ["http", "https", "mailto", "tel"]
+                }),
             }),
           ],
         }),

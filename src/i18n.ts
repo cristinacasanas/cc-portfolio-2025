@@ -26,8 +26,22 @@ i18n
 		},
 		// Detection options
 		detection: {
-			order: ["path", "navigator", "htmlTag"],
+			order: [
+				"querystring",
+				"localStorage",
+				"cookie",
+				"path",
+				"navigator",
+				"htmlTag",
+			],
+			lookupQuerystring: "lang",
 			lookupFromPathIndex: 0,
+			lookupLocalStorage: "i18nextLng",
+			lookupCookie: "i18next",
+			// Cookie options
+			caches: ["localStorage", "cookie"],
+			cookieDomain: window.location.hostname,
+			cookieMinutes: 525600, // 1 year (365 days)
 			// Convert all detected languages to lowercase
 			convertDetectedLanguage: (lng) => lng.toLowerCase(),
 		},

@@ -56,7 +56,14 @@ export const AboutModal = () => {
 		queryKey: ["about"],
 		queryFn: () => client.fetch(`*[_type == "about"]`),
 	});
-	const { t } = useTranslation();
+
+	const { data: networkData } = useQuery({
+		queryKey: ["network"],
+		queryFn: () => client.fetch(`*[_type == "network"][0]`),
+	});
+
+	const { t, i18n } = useTranslation();
+	const currentLanguage = i18n.language || "fr";
 
 	return (
 		<AnimatePresence>
@@ -79,7 +86,11 @@ export const AboutModal = () => {
 										<div>
 											{data?.[0]?.description ? (
 												<PortableText
-													value={data[0].description}
+													value={
+														data[0].description[
+															currentLanguage === "fr" ? "fr" : "en"
+														] || data[0].description.fr
+													}
 													components={portableTextComponents}
 												/>
 											) : null}
@@ -99,22 +110,33 @@ export const AboutModal = () => {
 												className="font-mono text-[10px] text-text-secondary uppercase leading-none underline"
 												to={data?.[0]?.awards?.[0]?.url}
 											>
-												{data?.[0]?.awards?.[0]?.url}
+												{data?.[0]?.awards?.[0]?.placeholder ||
+													data?.[0]?.awards?.[0]?.url}
 											</Link>
 										</div>
 									</div>
 								</div>
 							</div>
 							<div className="flex h-20 flex-col justify-between">
-								<Link className="font-serif leading-none" to="/">
-									↗ Instagram
-								</Link>
-								<Link className="font-serif leading-none" to="/">
-									↗ Cosmos
-								</Link>
-								<Link className="font-serif leading-none" to="/">
-									↗ Mail
-								</Link>
+								{networkData?.links?.map(
+									(link: { title: string; url: string }) => (
+										<a
+											key={link.url}
+											href={link.url}
+											className="font-serif leading-none"
+											target={
+												link.url.startsWith("http") ? "_blank" : undefined
+											}
+											rel={
+												link.url.startsWith("http")
+													? "noopener noreferrer"
+													: undefined
+											}
+										>
+											↗ {link.title}
+										</a>
+									),
+								)}
 							</div>
 						</div>
 						<div className="flex w-full justify-end md:w-auto">
