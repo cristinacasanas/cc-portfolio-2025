@@ -226,7 +226,7 @@ export const ThumbnailsSidebar = () => {
 						}}
 						className="will-change-opacity"
 					>
-						<Thumbnail item={item} />
+						<Thumbnail item={item} className="bg-white" />
 					</motion.div>
 				);
 			})}

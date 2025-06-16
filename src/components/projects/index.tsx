@@ -249,12 +249,11 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 			data-project-id={projectId}
 			className="inline-flex w-full flex-col items-start justify-start gap-1.5 self-stretch md:gap-2.5"
 		>
-			<CoverImage
-				cover={project.gallery}
+			<MainImage
+				item={project.gallery?.[currentImageIndex]}
 				title={project.title}
-				index={currentImageIndex}
 				direction={direction}
-				navigateImage={navigateImage}
+				onDrag={handleDragEnd}
 			/>
 			<Carousel
 				images={project.gallery}
@@ -265,6 +264,23 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 			<ProjectDescription isOpen={isOpen} description={project.description} />
 		</div>
 	);
+
+	// Handle drag end event for the main image
+	function handleDragEnd(
+		_: MouseEvent | TouchEvent | PointerEvent,
+		info: PanInfo,
+	) {
+		const { offset, velocity } = info;
+		const swipeThreshold = 50;
+
+		if (offset.x > swipeThreshold || velocity.x > 800) {
+			// Swipe right - go to previous image
+			navigateImage(currentImageIndex - 1);
+		} else if (offset.x < -swipeThreshold || velocity.x < -800) {
+			// Swipe left - go to next image
+			navigateImage(currentImageIndex + 1);
+		}
+	}
 };
 
 // Video component with the same props interface as Image
@@ -326,7 +342,10 @@ const MediaItem = ({ item, title, className, ...props }: MediaItemProps) => {
 				import.meta.env.VITE_SANITY_PROJECT_ID
 			}/${import.meta.env.VITE_SANITY_DATASET}/${item.asset._ref
 				.replace("file-", "")
-				.replace("-mp4", ".mp4")}`
+				.replace("-mp4", ".mp4")
+				.replace("-webm", ".webm")
+				.replace("-ogg", ".ogg")
+				.replace("-mov", ".mov")}`
 		: urlFor(item).url();
 
 	if (isVideoItem) {
@@ -352,18 +371,19 @@ const MediaItem = ({ item, title, className, ...props }: MediaItemProps) => {
 	);
 };
 
-const CoverImage = ({
-	cover,
+const MainImage = ({
+	item,
 	title,
-	index,
 	direction,
-	navigateImage,
+	onDrag,
 }: {
-	cover: Projects["gallery"];
+	item?: NonNullable<Projects["gallery"]>[0];
 	title?: string;
-	index: number;
 	direction: number;
-	navigateImage: (newIndex: number) => void;
+	onDrag: (
+		event: MouseEvent | TouchEvent | PointerEvent,
+		info: PanInfo,
+	) => void;
 }) => {
 	// Define animation variants without using string for position
 	const variants = {
@@ -381,25 +401,7 @@ const CoverImage = ({
 		}),
 	};
 
-	// Handle drag end event
-	const handleDragEnd = (
-		_: MouseEvent | TouchEvent | PointerEvent,
-		info: PanInfo,
-	) => {
-		const { offset, velocity } = info;
-		const swipeThreshold = 50;
-
-		if (offset.x > swipeThreshold || velocity.x > 800) {
-			// Swipe right - go to previous image
-			navigateImage(index - 1);
-		} else if (offset.x < -swipeThreshold || velocity.x < -800) {
-			// Swipe left - go to next image
-			navigateImage(index + 1);
-		}
-	};
-
-	if (!cover || !cover[index]) return null;
-	const currentItem = cover[index];
+	if (!item) return null;
 
 	return (
 		<div className="relative inline-flex w-full flex-col items-start justify-start gap-1.5 self-stretch overflow-hidden md:gap-2.5">
@@ -409,14 +411,14 @@ const CoverImage = ({
 					drag="x"
 					dragElastic={0.3}
 					dragConstraints={{ left: 0, right: 0 }}
-					onDragEnd={handleDragEnd}
+					onDragEnd={onDrag}
 					whileTap={{ cursor: "grabbing" }}
 					style={{ position: "relative", height: "100%" }}
 				>
 					<div style={{ position: "absolute", inset: 0 }}>
 						<AnimatePresence initial={false} mode="sync" custom={direction}>
 							<motion.div
-								key={index}
+								key={item.asset?._ref}
 								custom={direction}
 								variants={variants}
 								initial="enter"
@@ -436,7 +438,7 @@ const CoverImage = ({
 							>
 								<MediaItem
 									className="h-full w-full object-cover"
-									item={currentItem}
+									item={item}
 									title={title}
 									draggable={false}
 								/>
@@ -464,7 +466,7 @@ const Carousel = ({
 				<button
 					key={item.asset?._ref}
 					className={clsx(
-						"max-h-[61px] max-w-[108px] cursor-pointer border-0 p-0 bg-transparent",
+						"h-full max-h-[61px] max-w-[108px] cursor-pointer border-0 bg-white p-0",
 						currentIndex !== index && "opacity-50",
 					)}
 					onClick={() => setCurrentIndex(index)}
@@ -474,7 +476,7 @@ const Carousel = ({
 						item={item}
 						alt={item.alt || ""}
 						draggable={false}
-						className="h-full w-full object-cover"
+						className="h-full w-full bg-white object-cover"
 						ratio="16/9"
 						controls={false}
 						muted={true}

@@ -26,10 +26,25 @@ export default defineType({
     defineField({
       name: "thumbnail",
       title: "Thumbnail",
-      type: "image",
-      options: {
-        hotspot: true,
-      },
+      type: "array",
+      of: [
+        {
+          name: "image",
+          title: "Image",
+          type: "image",
+          options: {
+            hotspot: true,
+          },
+        },
+        {
+          name: "video",
+          title: "Video",
+          type: "file",
+          options: {
+            accept: "video/*",
+          },
+        },
+      ],
       validation: (Rule: any) => Rule.required(),
     }),
     defineField({
@@ -58,15 +73,6 @@ export default defineType({
       validation: (Rule: any) => Rule.required(),
     }),
     defineField({
-      name: "coverImage",
-      title: "Cover Image",
-      type: "image",
-      options: {
-        hotspot: true,
-      },
-      validation: (Rule: any) => Rule.required(),
-    }),
-    defineField({
       name: "gallery",
       title: "Gallery",
       type: "array",
@@ -75,6 +81,7 @@ export default defineType({
           type: "image",
           options: {
             hotspot: true,
+            
           },
           fields: [
             {

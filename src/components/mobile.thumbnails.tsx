@@ -807,6 +807,7 @@ export const MobileThumbnails = () => {
 
 	const getProjectOpacity = useCallback(
 		(projectId: string, index: number) => {
+			console.log(projectId, index);
 			if (!projectId) return 0;
 
 			const isVisible = projectId === visibleProject;
@@ -833,8 +834,6 @@ export const MobileThumbnails = () => {
 			const isSecond = index === 1;
 			const isFirstOrSecond = isFirst || isSecond;
 			const isBoundary = isBoundaryItem(projectId) !== null;
-
-			const filterValue = isActive ? "brightness(1.05)" : "brightness(0.95)";
 
 			// Optimize animations based on position
 			const transitionDuration = isFirstOrSecond || isBoundary ? 0.15 : 0.2;
@@ -872,7 +871,7 @@ export const MobileThumbnails = () => {
 						}
 					}}
 				>
-					<Thumbnail className="h-full w-full" item={item} />
+					<Thumbnail className="h-full w-full bg-white" item={item} />
 				</motion.div>
 			);
 		},

@@ -37,6 +37,7 @@ export const InfiniteImageGrid = () => {
 	const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 	const [momentum, setMomentum] = useState({ x: 0, y: 0 });
 	const [isLoading, setIsLoading] = useState(false);
+	console.log(isLoading);
 	const [imagesSizes, setImagesSizes] = useState<
 		Record<string, { width: number; height: number }>
 	>({});
