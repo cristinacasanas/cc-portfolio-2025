@@ -12,6 +12,7 @@ export default defineConfig({
 		hmr: {
 			overlay: true,
 		},
+		historyApiFallback: true,
 	},
 	plugins: [
 		TanStackRouterVite({
@@ -40,5 +41,10 @@ export default defineConfig({
 				},
 			},
 		},
+		outDir: "dist",
+		assetsDir: "assets",
+	},
+	preview: {
+		historyApiFallback: true,
 	},
 });
