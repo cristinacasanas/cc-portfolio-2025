@@ -50,23 +50,58 @@ export const MobileThumbnails = () => {
 	const selectionLockRef = useRef(false);
 	const isAtBoundaryRef = useRef<"start" | "near-start" | "end" | null>(null);
 
-	const { data } = useQuery({
-		queryKey: ["thumbnails", { category }],
+	// Always fetch all projects regardless of category
+	const { data: allProjects } = useQuery({
+		queryKey: ["allThumbnails"],
+		queryFn: async () => {
+			return client.fetch<ProjectWithCategories[]>(getAllProjects);
+		},
+	});
+
+	// Fetch category data for filtering
+	const { data: categoryProjects } = useQuery({
+		queryKey: ["categoryThumbnails", { category }],
 		queryFn: async () => {
 			if (category) {
 				return client.fetch<ProjectWithCategories[]>(
 					getProjectsByCategory(category),
 				);
 			}
-			return client.fetch<ProjectWithCategories[]>(getAllProjects);
+			return null;
 		},
+		enabled: !!category,
 	});
 
-	// Memoize projects processing
+	// Get mapping of projects that match current category
+	const matchingProjectIds = useMemo(() => {
+		if (!categoryProjects) return new Set<string>();
+
+		return new Set(categoryProjects.map((p) => p.slug?.current || p._id || ""));
+	}, [categoryProjects]);
+
+	// Memoize projects processing - sort matching projects first
 	const sortedProjects = useMemo(() => {
-		if (!data) return [];
-		return [...data];
-	}, [data]);
+		if (!allProjects) return [];
+
+		// If no category filter is active, return original order
+		if (!category) return [...allProjects];
+
+		// Separate projects into matching and non-matching
+		const matching: ProjectWithCategories[] = [];
+		const nonMatching: ProjectWithCategories[] = [];
+
+		for (const project of allProjects) {
+			const projectId = project.slug?.current || project._id || "";
+			if (matchingProjectIds.has(projectId)) {
+				matching.push(project);
+			} else {
+				nonMatching.push(project);
+			}
+		}
+
+		// Return matching projects first, followed by non-matching
+		return [...matching, ...nonMatching];
+	}, [allProjects, category, matchingProjectIds]);
 
 	// Get boundary project IDs with more detailed near-boundary info
 	const boundaryIds = useMemo(() => {
@@ -550,9 +585,26 @@ export const MobileThumbnails = () => {
 		}
 	}, [project, updateVisibleProject, resetScrollState]);
 
-	// Initialize first project when data loads
+	// Initialize first matching project when data and category change
 	useEffect(() => {
-		if (!visibleProject && sortedProjects.length > 0) {
+		// When category changes, select first matching project if available
+		if (category && sortedProjects.length > 0) {
+			// Find first matching project when category changes
+			const firstMatchingProject = sortedProjects.find((p) => {
+				const projectId = p.slug?.current || p._id || "";
+				return matchingProjectIds.has(projectId);
+			});
+
+			if (firstMatchingProject) {
+				const projectId =
+					firstMatchingProject.slug?.current || firstMatchingProject._id;
+				if (projectId) {
+					resetScrollState();
+					updateVisibleProject(projectId, true, true);
+				}
+			}
+			// Otherwise initialize with first project when data loads
+		} else if (!visibleProject && sortedProjects.length > 0) {
 			const firstProject = sortedProjects[0];
 			const firstProjectId = firstProject.slug?.current || firstProject._id;
 			if (firstProjectId) {
@@ -560,7 +612,14 @@ export const MobileThumbnails = () => {
 				updateVisibleProject(firstProjectId, true, true);
 			}
 		}
-	}, [sortedProjects, visibleProject, updateVisibleProject, resetScrollState]);
+	}, [
+		sortedProjects,
+		visibleProject,
+		category,
+		updateVisibleProject,
+		resetScrollState,
+		matchingProjectIds,
+	]);
 
 	// Simplified project visibility event handler - only respond to explicit interactions
 	useEffect(() => {
@@ -805,20 +864,26 @@ export const MobileThumbnails = () => {
 		};
 	}, [sortedProjects, resetScrollState]);
 
+	// Updated to consider category filtering in opacity calculation
 	const getProjectOpacity = useCallback(
 		(projectId: string, index: number) => {
-			console.log(projectId, index);
 			if (!projectId) return 0;
 
+			// Check if this project matches the current category filter
+			const matchesCategory = category
+				? matchingProjectIds.has(projectId)
+				: true;
 			const isVisible = projectId === visibleProject;
 
-			if (category) {
-				return isVisible ? 1 : 0.6;
+			// No category filter: normal opacity behavior
+			if (!category) {
+				return isVisible ? 1 : 0.35;
 			}
 
-			return isVisible ? 1 : 0.35;
+			// With category filter: show matching projects with normal opacity, non-matching with opacity 0
+			return matchesCategory ? (isVisible ? 1 : 0.6) : 0;
 		},
-		[visibleProject, category],
+		[visibleProject, category, matchingProjectIds],
 	);
 
 	// Optimized rendering for thumbnails
@@ -834,6 +899,9 @@ export const MobileThumbnails = () => {
 			const isSecond = index === 1;
 			const isFirstOrSecond = isFirst || isSecond;
 			const isBoundary = isBoundaryItem(projectId) !== null;
+			const matchesCategory = category
+				? matchingProjectIds.has(projectId)
+				: true;
 
 			// Optimize animations based on position
 			const transitionDuration = isFirstOrSecond || isBoundary ? 0.15 : 0.2;
@@ -863,9 +931,13 @@ export const MobileThumbnails = () => {
 						type: "tween",
 					}}
 					layout={false} // Disable layout animations for better performance
-					className={clsx("h-full w-full", isActive ? "z-10" : "z-0")}
+					className={clsx(
+						"h-full w-full",
+						isActive ? "z-10" : "z-0",
+						!matchesCategory && category ? "pointer-events-none" : "",
+					)}
 					onClick={() => {
-						if (projectId) {
+						if (projectId && (matchesCategory || !category)) {
 							resetScrollState();
 							updateVisibleProject(projectId, true, true);
 						}
@@ -881,6 +953,8 @@ export const MobileThumbnails = () => {
 			updateVisibleProject,
 			getProjectOpacity,
 			isBoundaryItem,
+			category,
+			matchingProjectIds,
 		],
 	);
 

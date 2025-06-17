@@ -73,7 +73,7 @@ export const AboutModal = () => {
 					animate={{ x: 0, opacity: 1 }}
 					exit={{ x: -100, opacity: 0 }}
 					transition={{ duration: 0.3 }}
-					className="absolute top-[var(--header-height)] left-0 z-50 inline-flex h-[calc(100dvh-var(--header-height))] w-screen flex-col items-start justify-between border-black border-r bg-background-primary pt-14 pr-2 pb-6 pl-4 backdrop-blur-sm md:w-[455px]"
+					className="absolute top-[var(--header-height)] left-0 z-50 inline-flex h-[calc(100dvh-var(--header-height))] w-screen flex-col items-start justify-between border-black border-r bg-background-primary pr-2 pb-6 pl-4 backdrop-blur-sm md:w-[455px] md:pt-14"
 				>
 					<div className="flex flex-1 flex-col-reverse items-start justify-between gap-6 self-stretch md:flex-row md:gap-0">
 						<div className="inline-flex flex-1 flex-col items-start justify-between self-stretch md:flex-0">
@@ -99,7 +99,7 @@ export const AboutModal = () => {
 								</div>
 								<div className="flex flex-col items-start justify-start gap-2">
 									<h2 className="font-normal font-serif leading-none">
-										{t("aboutModal.awards")}
+										{t("aboutModal.press")}
 									</h2>
 									<div className="flex flex-col gap-2 pl-4">
 										<div className="justify-start">
