@@ -7,12 +7,10 @@ import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 
 // https://vitejs.dev/config/
 export default defineConfig({
+	base: "/",
 	server: {
-		port: 5173,
-		hmr: {
-			overlay: true,
-		},
-		historyApiFallback: true,
+		port: 3000,
+		strictPort: false,
 	},
 	plugins: [
 		TanStackRouterVite({
@@ -32,6 +30,8 @@ export default defineConfig({
 		},
 	},
 	build: {
+		sourcemap: true,
+		outDir: "dist",
 		rollupOptions: {
 			output: {
 				manualChunks: (id) => {
@@ -41,10 +41,5 @@ export default defineConfig({
 				},
 			},
 		},
-		outDir: "dist",
-		assetsDir: "assets",
-	},
-	preview: {
-		historyApiFallback: true,
 	},
 });
