@@ -6,6 +6,7 @@ import {
 	clear as clearScrollService,
 	registerProject,
 } from "@/lib/scroll.service";
+import { getVideoUrl, isVideo } from "@/utils/video";
 import clsx from "clsx";
 import { AnimatePresence, type PanInfo, motion } from "framer-motion";
 import React, { useEffect, useRef } from "react";
@@ -13,16 +14,6 @@ import type { Categories, Projects } from "studio/sanity.types";
 
 type ProjectWithCategories = Projects & {
 	expandedCategories?: Categories[];
-};
-
-// Helper to determine if a media item is a video based on mimeType or file extension
-const isVideo = (item: { asset?: { _ref?: string } }): boolean => {
-	if (!item?.asset?._ref) return false;
-
-	// Check if file extension suggests it's a video (mp4, webm, etc.)
-	const ref = item.asset._ref;
-	// File references typically start with "file-" instead of "image-"
-	return ref.startsWith("file-");
 };
 
 // Référence globale pour suivre tous les projets et leurs positions
@@ -288,7 +279,7 @@ const Video = ({
 	className,
 	src,
 	alt,
-	ratio,
+	ratio = "16/9",
 	...props
 }: {
 	className?: string;
@@ -296,30 +287,97 @@ const Video = ({
 	alt: string;
 	ratio?: "16/9" | "4/3" | "1/1" | "3/4" | "9/16" | "4/5";
 }) => {
-	const aspectRatioClasses: Record<string, string> = {
-		"16/9": "aspect-video",
-		"4/3": "aspect-[4/3]",
-		"1/1": "aspect-square",
-		"3/4": "aspect-[3/4]",
-		"9/16": "aspect-[9/16]",
-		"4/5": "aspect-[4/5]",
-	};
+	const [hasError, setHasError] = React.useState(false);
+	const videoRef = React.useRef<HTMLVideoElement>(null);
 
-	const aspectClass = ratio ? aspectRatioClasses[ratio] : "";
+	// Get aspect ratio class
+	const aspectClass = React.useMemo(() => {
+		switch (ratio) {
+			case "16/9":
+				return "aspect-video";
+			case "4/3":
+				return "aspect-[4/3]";
+			case "1/1":
+				return "aspect-square";
+			case "3/4":
+				return "aspect-[3/4]";
+			case "9/16":
+				return "aspect-[9/16]";
+			case "4/5":
+				return "aspect-[4/5]";
+			default:
+				return "aspect-video";
+		}
+	}, [ratio]);
+
+	// Try to reload the video if it fails to load
+	React.useEffect(() => {
+		let retryCount = 0;
+		const maxRetries = 2;
+
+		const tryReload = () => {
+			if (videoRef.current && hasError && retryCount < maxRetries) {
+				retryCount++;
+				videoRef.current.load();
+			}
+		};
+
+		if (hasError) {
+			const timer = setTimeout(tryReload, 1000);
+			return () => clearTimeout(timer);
+		}
+	}, [hasError]);
+
+	if (!src) {
+		return (
+			<div
+				className={clsx(
+					aspectClass,
+					"flex items-center justify-center bg-gray-100",
+					className,
+				)}
+			>
+				<span className="text-gray-400">Video source missing</span>
+			</div>
+		);
+	}
 
 	return (
-		<video
-			className={clsx(aspectClass, "h-full w-full object-cover", className)}
-			src={src}
-			title={alt}
-			playsInline
-			autoPlay
-			loop
-			{...props}
-		>
-			<track kind="captions" />
-			Your browser does not support the video tag.
-		</video>
+		<>
+			<video
+				ref={videoRef}
+				className={clsx(
+					aspectClass,
+					"h-full w-full object-cover",
+					className,
+					hasError && "hidden",
+				)}
+				src={src}
+				title={alt}
+				playsInline
+				autoPlay
+				loop
+				muted
+				onError={() => setHasError(true)}
+				onLoadedData={() => setHasError(false)}
+				{...props}
+			>
+				<track kind="captions" />
+				Your browser does not support the video tag.
+			</video>
+
+			{hasError && (
+				<div
+					className={clsx(
+						aspectClass,
+						"flex items-center justify-center bg-gray-100",
+						className,
+					)}
+				>
+					<span className="text-gray-500">Failed to load video</span>
+				</div>
+			)}
+		</>
 	);
 };
 
@@ -332,21 +390,46 @@ interface MediaItemProps {
 }
 
 const MediaItem = ({ item, title, className, ...props }: MediaItemProps) => {
-	if (!item?.asset?._ref) {
+	if (!item) {
 		return null;
 	}
 
+	// Handle array items (as per schema)
+	if (Array.isArray(item)) {
+		const mediaItem = item.find((t) => t && typeof t === "object");
+		if (!mediaItem) return null;
+
+		// Recursively call MediaItem with the found item
+		return (
+			<MediaItem
+				item={mediaItem}
+				title={title}
+				className={className}
+				{...props}
+			/>
+		);
+	}
+
 	const isVideoItem = isVideo(item);
-	const src = isVideoItem
-		? `https://cdn.sanity.io/files/${
-				import.meta.env.VITE_SANITY_PROJECT_ID
-			}/${import.meta.env.VITE_SANITY_DATASET}/${item.asset._ref
-				.replace("file-", "")
-				.replace("-mp4", ".mp4")
-				.replace("-webm", ".webm")
-				.replace("-ogg", ".ogg")
-				.replace("-mov", ".mov")}`
-		: urlFor(item).url();
+
+	if (!item.asset?._ref) {
+		return null;
+	}
+
+	let src = "";
+
+	try {
+		if (isVideoItem) {
+			// Get video URL using the utility function
+			src = getVideoUrl(item.asset._ref);
+		} else {
+			// Get image URL using Sanity's urlFor
+			src = urlFor(item).url();
+		}
+	} catch (error) {
+		console.error("Error generating URL:", error);
+		return null;
+	}
 
 	if (isVideoItem) {
 		return (

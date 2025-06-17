@@ -50,7 +50,6 @@ export const ThumbnailsSidebar = () => {
 
 		const activeThumb = thumbnailRefs.current.get(projectId);
 		if (!activeThumb) {
-			// Retry if element not found (might still be mounting)
 			if (retryCountRef.current < maxRetries) {
 				retryCountRef.current++;
 				setTimeout(() => scrollToThumbnail(projectId), 100);
@@ -58,10 +57,8 @@ export const ThumbnailsSidebar = () => {
 			return;
 		}
 
-		// Reset retry count on successful find
 		retryCountRef.current = 0;
 
-		// Check if element has dimensions (is actually rendered)
 		const rect = activeThumb.getBoundingClientRect();
 		if (rect.width === 0 || rect.height === 0) {
 			// Element not yet rendered, retry
@@ -82,6 +79,7 @@ export const ThumbnailsSidebar = () => {
 				inline: "center",
 			});
 		} catch (error) {
+			console.warn("[THUMBNAILS] Scroll failed:", error);
 			// Fallback for browsers that don't support scrollIntoView options
 			try {
 				activeThumb.scrollIntoView();
@@ -224,7 +222,7 @@ export const ThumbnailsSidebar = () => {
 							ease: "easeOut",
 							type: "tween",
 						}}
-						className="will-change-opacity"
+						className="h-full w-full will-change-opacity"
 					>
 						<Thumbnail item={item} className="bg-white" />
 					</motion.div>
