@@ -333,7 +333,7 @@ const Video = ({
 			<div
 				className={clsx(
 					aspectClass,
-					"bg-gray-100 flex items-center justify-center",
+					"flex items-center justify-center bg-gray-100",
 					className,
 				)}
 			>

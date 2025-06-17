@@ -222,7 +222,7 @@ export const ThumbnailsSidebar = () => {
 							ease: "easeOut",
 							type: "tween",
 						}}
-						className="will-change-opacity h-full w-full"
+						className="h-full w-full will-change-opacity"
 					>
 						<Thumbnail item={item} className="bg-white" />
 					</motion.div>
