@@ -84,7 +84,7 @@ const SizedImageDisplay = ({
 };
 
 const listContainerVariants = cva(
-	"relative flex w-full flex-col items-center",
+	"relative flex w-full flex-col items-center pb-28",
 	{
 		variants: {
 			spacing: {

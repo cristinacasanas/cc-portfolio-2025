@@ -3,12 +3,19 @@ import { LabFooterOverlay } from "@/components/layout/lab-footer.overlay";
 import { getLab } from "@/lib/queries/lab";
 import { client } from "@/lib/sanity";
 import { TransitionView } from "@/views/transition.view";
-import { createFileRoute, useSearch } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	useLocation,
+	useSearch,
+} from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
 import { Suspense, lazy, useEffect, useState } from "react";
 import type { Lab } from "studio/sanity.types";
 
 const LabView = lazy(() => import("@/views/lab.view"));
+
+// Key for session storage to track first visit
+const FIRST_LAB_VISIT_KEY = "first-lab-visit";
 
 export const Route = createFileRoute("/lab")({
 	component: LabRouteComponent,
@@ -26,35 +33,30 @@ export const Route = createFileRoute("/lab")({
 function LabRouteComponent() {
 	useSearch({ from: "/lab" });
 	const [showTransition, setShowTransition] = useState(true);
+	const location = useLocation();
 
 	useEffect(() => {
-		// Vérifier si on doit montrer la transition
-		const shouldShowTransition = () => {
-			// Vérifier l'historique de navigation
-			const hasVisitedLabInSession = sessionStorage.getItem("lab-visited");
+		console.log("Lab component mounted");
 
-			if (!hasVisitedLabInSession) {
-				// Première visite dans cette session
-				sessionStorage.setItem("lab-visited", "true");
-				return true;
-			}
+		// Check if this is the first time we've loaded the lab page in this session
+		// If we've never set the flag, this is our first visit
+		const isFirstVisit = !sessionStorage.getItem(FIRST_LAB_VISIT_KEY);
+		console.log("Is first lab visit:", isFirstVisit);
 
-			// Vérifier le referrer comme fallback
-			const referrer = document.referrer;
-			if (referrer && !referrer.includes("/lab")) {
-				return true;
-			}
-
-			return false;
-		};
-
-		const shouldShow = shouldShowTransition();
-
-		if (!shouldShow) {
+		if (!isFirstVisit) {
+			console.log("Skipping transition - not first visit");
 			setShowTransition(false);
 			return;
 		}
 
+		// Mark that we've visited the lab page
+		sessionStorage.setItem(FIRST_LAB_VISIT_KEY, "true");
+		console.log("Setting first visit flag");
+
+		// Show the transition for the first visit
+		console.log("Showing transition for first visit");
+
+		// Preload images
 		const preloadImages = async () => {
 			try {
 				const data = await client.fetch<Lab[]>(getLab);
@@ -82,16 +84,25 @@ function LabRouteComponent() {
 
 		preloadImages();
 
+		// Hide transition after 4 seconds
 		const timer = setTimeout(() => {
 			setShowTransition(false);
 		}, 4000);
 
-		return () => clearTimeout(timer);
+		return () => {
+			clearTimeout(timer);
+			// Note: we intentionally DON'T clear the session storage
+			// so the flag persists during the browser session
+		};
 	}, []);
 
+	// When the component unmounts (navigating away from lab)
 	useEffect(() => {
 		return () => {
-			sessionStorage.removeItem("lab-visited");
+			// Clear the flag when navigating away from lab,
+			// so next time we come back, we'll see the animation again
+			sessionStorage.removeItem(FIRST_LAB_VISIT_KEY);
+			console.log("Cleared first visit flag");
 		};
 	}, []);
 

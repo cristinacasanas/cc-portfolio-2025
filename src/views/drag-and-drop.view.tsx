@@ -225,13 +225,13 @@ export function DragAndDropView() {
 								"absolute",
 								isDragged ? "transition-none" : "transition-all duration-200",
 								"cursor-move touch-none select-none",
+								"w-40 sm:w-64 md:w-80 lg:w-96",
 							)}
 							style={{
 								top: position.y,
 								left: position.x,
 								transform: "translate(-50%, -50%)",
 								zIndex,
-								width: "380px",
 							}}
 							onMouseDown={(e) => handlePosterMouseDown(e, index)}
 							onTouchStart={(e) => handlePosterTouchStart(e, index)}

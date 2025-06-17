@@ -71,43 +71,44 @@ export const ThumbnailsSidebar = () => {
 
 		isScrollingProgrammatically.current = true;
 
-		try {
-			// First attempt: standard method
-			if ("scrollIntoView" in activeThumb) {
-				try {
-					activeThumb.scrollIntoView({
-						behavior: "smooth",
-						block: "center",
-					});
-				} catch (error) {
-					// Fallback to simple scrollIntoView without options
-					activeThumb.scrollIntoView();
-				}
-			} else if (sidebarRef.current) {
-				// Fallback: manual scroll calculation
-				const container = sidebarRef.current;
-				const containerRect = container.getBoundingClientRect();
-
-				// Calculate position to center element
-				const targetScroll =
-					(activeThumb as HTMLElement).offsetTop -
-					container.clientHeight / 2 +
-					rect.height / 2;
-
-				// Smooth scroll with native API
-				container.scrollTo({
-					top: targetScroll,
-					behavior: "smooth",
-				});
-			}
-		} catch (error) {
-			console.warn("[THUMBNAILS] All scroll methods failed:", error);
+		// Get the container and verify its scroll capability
+		const container = sidebarRef.current;
+		if (!container) {
+			isScrollingProgrammatically.current = false;
+			return;
 		}
 
-		// Reset scrolling flag after animation
-		setTimeout(() => {
-			isScrollingProgrammatically.current = false;
-		}, 600); // Reduced timeout for better responsiveness
+		// Calculate the target position
+		const containerRect = container.getBoundingClientRect();
+		const targetPosition =
+			(activeThumb as HTMLElement).offsetTop -
+			containerRect.height / 2 +
+			rect.height / 2;
+
+		// Start position
+		const startPosition = container.scrollTop;
+		const distance = targetPosition - startPosition;
+
+		// Smooth scroll using animation frame
+		const duration = 300; // ms
+		const startTime = performance.now();
+
+		function animateScroll(currentTime: number) {
+			const elapsedTime = currentTime - startTime;
+
+			if (elapsedTime < duration) {
+				// Ease-out function
+				const progress = 1 - Math.pow(1 - elapsedTime / duration, 3);
+				container.scrollTop = startPosition + distance * progress;
+				requestAnimationFrame(animateScroll);
+			} else {
+				// Ensure we land exactly on target
+				container.scrollTop = targetPosition;
+				isScrollingProgrammatically.current = false;
+			}
+		}
+
+		requestAnimationFrame(animateScroll);
 	}, []);
 
 	// Debounced function to update visible project
