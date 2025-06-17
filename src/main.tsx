@@ -1,4 +1,5 @@
 import { RouterProvider, createRouter } from "@tanstack/react-router";
+import { Analytics } from "@vercel/analytics/react";
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 
@@ -36,6 +37,7 @@ if (rootElement && !rootElement.innerHTML) {
 	root.render(
 		<StrictMode>
 			<TanstackQuery.Provider>
+				<Analytics />
 				<RouterProvider router={router} />
 			</TanstackQuery.Provider>
 		</StrictMode>,
