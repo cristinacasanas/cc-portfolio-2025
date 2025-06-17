@@ -5,7 +5,7 @@
 /**
  * Obtenir tous les projets avec leurs catégories étendues
  */
-export const getAllProjects = `*[_type == "projects"]{
+export const getAllProjects = `*[_type == "projects"] | order(orderRank) {
   ...,
   "expandedCategories": categories[]->
 }`;
@@ -15,7 +15,7 @@ export const getAllProjects = `*[_type == "projects"]{
  * @param categorySlug - Slug ou ID de la catégorie
  */
 export const getProjectsByCategory = (categorySlug: string) => `
-  *[_type == "projects" && references(*[_type == "categories" && (slug.current == "${categorySlug}" || _id == "${categorySlug}")]._id)]{
+  *[_type == "projects" && references(*[_type == "categories" && (slug.current == "${categorySlug}" || _id == "${categorySlug}")]._id)] | order(orderRank){
     ...,
     "expandedCategories": categories[]->
   }
@@ -26,7 +26,7 @@ export const getProjectsByCategory = (categorySlug: string) => `
  * @param projectId - Slug ou ID du projet
  */
 export const getProjectById = (projectId: string) => `
-  *[_type == "projects" && (slug.current == "${projectId}" || _id == "${projectId}")]{
+  *[_type == "projects" && (slug.current == "${projectId}" || _id == "${projectId}") | order(orderRank)]{
     ...,
     "expandedCategories": categories[]->
   }

@@ -1,12 +1,40 @@
 import { Thumbnail } from "@/components/ui/thumbnail";
-import { getAllProjects, getProjectsByCategory } from "@/lib/queries";
 import { client } from "@/lib/sanity";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Categories, Projects } from "studio/sanity.types";
 import { Sidebar } from "../sidebar";
+
+// Specific thumbnail queries to ensure all required fields are fetched
+const thumbnailsProjectsQuery = `*[_type == "projects"] | order(orderRank) {
+	_id,
+	title,
+	slug,
+	thumbnail,
+	gallery[0],
+	"expandedCategories": categories[]-> {
+		_id,
+		title,
+		slug
+	}
+}`;
+
+const thumbnailsProjectsByCategoryQuery = (categorySlug: string) => `
+	*[_type == "projects" && references(*[_type == "categories" && (slug.current == "${categorySlug}" || _id == "${categorySlug}")]._id)] | order(orderRank) {
+		_id,
+		title,
+		slug,
+		thumbnail,
+		gallery[0],
+		"expandedCategories": categories[]-> {
+			_id,
+			title,
+			slug
+		}
+	}
+`;
 
 type ProjectWithCategories = Projects & {
 	expandedCategories?: Categories[];
@@ -25,197 +53,123 @@ export const ThumbnailsSidebar = () => {
 	const [visibleProject, setVisibleProject] = useState<string | null>(null);
 	const sidebarRef = useRef<HTMLDivElement>(null);
 	const thumbnailRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-	const isScrollingProgrammatically = useRef(false);
-	const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-	const lastVisibleProjectRef = useRef<string | null>(null);
-	const retryCountRef = useRef(0);
-	const maxRetries = 3;
+	const isScrollingRef = useRef(false);
+
+	// Apply smooth scroll behavior when component mounts
+	useEffect(() => {
+		if (sidebarRef.current) {
+			sidebarRef.current.style.scrollBehavior = "smooth";
+		}
+		return () => {
+			if (sidebarRef.current) {
+				sidebarRef.current.style.scrollBehavior = "auto";
+			}
+		};
+	}, []);
 
 	const { data } = useQuery({
 		queryKey: ["thumbnails", { category }],
 		queryFn: async () => {
 			if (category) {
 				return client.fetch<ProjectWithCategories[]>(
-					getProjectsByCategory(category),
+					thumbnailsProjectsByCategoryQuery(category),
 				);
 			}
 
-			return client.fetch<ProjectWithCategories[]>(getAllProjects);
+			return client.fetch<ProjectWithCategories[]>(thumbnailsProjectsQuery);
 		},
+		staleTime: 1000 * 60 * 5, // 5 minutes
+		gcTime: 1000 * 60 * 30, // 30 minutes
 	});
 
-	// Robust scroll to thumbnail function
-	const scrollToThumbnail = useCallback((projectId: string) => {
-		if (!projectId || !sidebarRef.current) return;
+	// Simple function to scroll to a thumbnail
+	const scrollToThumbnail = (projectId: string) => {
+		if (!sidebarRef.current) return;
+		const thumbnail = thumbnailRefs.current.get(projectId);
+		if (!thumbnail) return;
 
-		const activeThumb = thumbnailRefs.current.get(projectId);
-		if (!activeThumb) {
-			if (retryCountRef.current < maxRetries) {
-				retryCountRef.current++;
-				setTimeout(() => scrollToThumbnail(projectId), 100);
-			}
-			return;
+		if (isScrollingRef.current) return;
+		isScrollingRef.current = true;
+
+		try {
+			// Use direct DOM manipulation for most reliable scrolling
+			const container = sidebarRef.current;
+			const thumbnailTop = thumbnail.offsetTop;
+			const containerHeight = container.clientHeight;
+			const thumbnailHeight = thumbnail.clientHeight;
+
+			// Center the thumbnail in the sidebar
+			const scrollPosition =
+				thumbnailTop - (containerHeight - thumbnailHeight) / 2;
+
+			// Use scrollTo with smooth behavior
+			container.scrollTo({
+				top: scrollPosition,
+				behavior: "smooth",
+			});
+		} catch (e) {
+			console.error("Scroll error:", e);
 		}
 
-		retryCountRef.current = 0;
+		// Reset scrolling flag after animation completes
+		setTimeout(() => {
+			isScrollingRef.current = false;
+		}, 500); // Allow enough time for scroll animation
+	};
 
-		const rect = activeThumb.getBoundingClientRect();
-		if (rect.width === 0 || rect.height === 0) {
-			// Element not yet rendered, retry
-			if (retryCountRef.current < maxRetries) {
-				retryCountRef.current++;
-				setTimeout(() => scrollToThumbnail(projectId), 100);
-			}
-			return;
-		}
-
-		isScrollingProgrammatically.current = true;
-
-		// Get the container and verify its scroll capability
-		const container = sidebarRef.current;
-		if (!container) {
-			isScrollingProgrammatically.current = false;
-			return;
-		}
-
-		// Calculate the target position
-		const containerRect = container.getBoundingClientRect();
-		const targetPosition =
-			(activeThumb as HTMLElement).offsetTop -
-			containerRect.height / 2 +
-			rect.height / 2;
-
-		// Start position
-		const startPosition = container.scrollTop;
-		const distance = targetPosition - startPosition;
-
-		// Smooth scroll using animation frame
-		const duration = 300; // ms
-		const startTime = performance.now();
-
-		function animateScroll(currentTime: number) {
-			const elapsedTime = currentTime - startTime;
-
-			if (elapsedTime < duration) {
-				// Ease-out function
-				const progress = 1 - Math.pow(1 - elapsedTime / duration, 3);
-				container.scrollTop = startPosition + distance * progress;
-				requestAnimationFrame(animateScroll);
-			} else {
-				// Ensure we land exactly on target
-				container.scrollTop = targetPosition;
-				isScrollingProgrammatically.current = false;
-			}
-		}
-
-		requestAnimationFrame(animateScroll);
-	}, []);
-
-	// Debounced function to update visible project
-	const debouncedSetVisibleProject = useCallback(
-		(projectId: string) => {
-			if (lastVisibleProjectRef.current === projectId) return;
-
-			lastVisibleProjectRef.current = projectId;
-			setVisibleProject(projectId);
-
-			// Clear any existing timeout
-			if (scrollTimeoutRef.current) {
-				clearTimeout(scrollTimeoutRef.current);
-			}
-
-			// Scroll to thumbnail with a small delay to ensure state update
-			scrollTimeoutRef.current = setTimeout(() => {
-				scrollToThumbnail(projectId);
-			}, 100); // Reduced delay for better responsiveness
-		},
-		[scrollToThumbnail],
-	);
-
-	// Handle project changes from URL
+	// Update based on URL parameter
 	useEffect(() => {
 		if (project) {
-			debouncedSetVisibleProject(project);
+			setVisibleProject(project);
+			setTimeout(() => scrollToThumbnail(project), 50);
 		}
-	}, [project, debouncedSetVisibleProject]);
+	}, [project]);
 
-	// Initialize first project when data loads
+	// Set initial project
 	useEffect(() => {
 		if (!visibleProject && data && data.length > 0) {
 			const firstProject = data[0];
 			const firstProjectId = firstProject.slug?.current || firstProject._id;
 			if (firstProjectId) {
-				debouncedSetVisibleProject(firstProjectId);
+				setVisibleProject(firstProjectId);
 			}
 		}
-	}, [data, visibleProject, debouncedSetVisibleProject]);
+	}, [data, visibleProject]);
 
-	// Handle project visibility events
+	// Listen for project visibility events from main content
 	useEffect(() => {
-		const handleVisibleProject = (e: ProjectInViewEvent) => {
+		const handleProjectInView = (event: Event) => {
+			const e = event as ProjectInViewEvent;
+			if (!e.detail) return;
+
 			const { projectId, isActive, intersectionRatio } = e.detail;
 
-			// Update visible project if it's active or highly visible
-			if (isActive || intersectionRatio > 0.6) {
-				// Only debounce if we're not currently scrolling programmatically
-				if (!isScrollingProgrammatically.current) {
-					debouncedSetVisibleProject(projectId);
-				} else {
-					// If we're scrolling programmatically, just update the state without scrolling
-					lastVisibleProjectRef.current = projectId;
-					setVisibleProject(projectId);
-				}
+			if (isActive && intersectionRatio > 0.5 && !isScrollingRef.current) {
+				setVisibleProject(projectId);
+				scrollToThumbnail(projectId);
 			}
 		};
 
-		// Handle page scroll to select first project when at top
-		const handleScroll = () => {
-			// Check if we're at top of page and select first project
-			if (window.scrollY < 100 && data && data.length > 0) {
-				const firstProject = data[0];
-				const firstProjectId = firstProject.slug?.current || firstProject._id;
-				if (
-					firstProjectId &&
-					lastVisibleProjectRef.current !== firstProjectId
-				) {
-					if (!isScrollingProgrammatically.current) {
-						debouncedSetVisibleProject(firstProjectId);
-					} else {
-						// If we're scrolling programmatically, just update the state
-						lastVisibleProjectRef.current = firstProjectId;
-						setVisibleProject(firstProjectId);
-					}
-				}
-			}
-		};
-
+		// Add event listener
 		window.addEventListener(
 			"projectInView",
-			handleVisibleProject as EventListener,
+			handleProjectInView as EventListener,
 		);
-		window.addEventListener("scroll", handleScroll, { passive: true });
 
 		return () => {
 			window.removeEventListener(
 				"projectInView",
-				handleVisibleProject as EventListener,
+				handleProjectInView as EventListener,
 			);
-			window.removeEventListener("scroll", handleScroll);
 		};
-	}, [debouncedSetVisibleProject, data]);
+	}, []);
 
-	// Cleanup on unmount or data change
+	// Effect to scroll when visibleProject changes
 	useEffect(() => {
-		thumbnailRefs.current.clear();
-		lastVisibleProjectRef.current = null;
-		retryCountRef.current = 0;
-
-		return () => {
-			if (scrollTimeoutRef.current) {
-				clearTimeout(scrollTimeoutRef.current);
-			}
-		};
-	}, [data]);
+		if (visibleProject) {
+			scrollToThumbnail(visibleProject);
+		}
+	}, [visibleProject]);
 
 	return (
 		<Sidebar
@@ -241,7 +195,16 @@ export const ThumbnailsSidebar = () => {
 						}}
 						className="h-full w-full will-change-opacity"
 					>
-						<Thumbnail item={item} className="bg-white" />
+						<Thumbnail
+							item={{
+								...item,
+								// Use gallery[0] as fallback if thumbnail is not available
+								thumbnail:
+									item.thumbnail ||
+									(Array.isArray(item.gallery) ? item.gallery[0] : undefined),
+							}}
+							className="bg-white"
+						/>
 					</motion.div>
 				);
 			})}
