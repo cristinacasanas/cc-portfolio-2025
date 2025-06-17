@@ -149,20 +149,29 @@ export const ListView = () => {
 			const imageId = pendingScrollRef.current;
 			pendingScrollRef.current = null;
 
-			// Use a proper ScrollBehavior instead of "instant"
+			// Find the element
 			const element = document.getElementById(`image-wrapper-${imageId}`);
-			if (element) {
-				element.scrollIntoView({
-					behavior: "auto", // Use "auto" instead of "instant" for better compatibility
-					block: currentGlobalSizeState === 2 ? "start" : "center",
-					inline: "nearest",
-				});
+			if (!element) return;
 
-				// Changer selectedId immédiatement aussi
+			// Simple, direct scroll that works in all environments
+			try {
+				// Calculate position without getBoundingClientRect for better reliability
+				const elemTop = element.offsetTop;
+				const offset =
+					currentGlobalSizeState === 2
+						? 0
+						: window.innerHeight / 2 - element.offsetHeight / 2;
+
+				// Perform the scroll directly
+				window.scrollTo(0, elemTop - offset);
+
+				// Update the store state
 				listStore.setState((prev) => ({
 					...prev,
 					selectedId: imageId,
 				}));
+			} catch (e) {
+				console.error("[LIST_SCROLL] Failed:", e);
 			}
 		}
 	}, [currentGlobalSizeState]);
@@ -207,18 +216,20 @@ export const ListView = () => {
 			if (currentGlobalSizeState === 2) {
 				pendingScrollRef.current = null;
 
+				// Update state first
 				listStore.setState((prev) => ({
 					...prev,
 					currentGlobalSizeState: 0,
 					selectedId: null,
 				}));
 
-				// Retour à la position originale immédiatement
+				// Simple, direct scroll back to original position
 				if (scrollStateRef.current?.originalScrollY !== undefined) {
-					window.scrollTo({
-						top: scrollStateRef.current?.originalScrollY || 0,
-						behavior: "auto", // Use standard "auto" instead of "instant"
-					});
+					try {
+						window.scrollTo(0, scrollStateRef.current.originalScrollY);
+					} catch (e) {
+						console.error("[LIST_SCROLL_RESTORE] Failed:", e);
+					}
 					scrollStateRef.current = null;
 				}
 				return;
