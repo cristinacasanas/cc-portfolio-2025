@@ -72,20 +72,36 @@ export const ThumbnailsSidebar = () => {
 		isScrollingProgrammatically.current = true;
 
 		try {
-			// Use the most compatible scroll method
-			activeThumb.scrollIntoView({
-				behavior: "smooth",
-				block: "center",
-				inline: "center",
-			});
-		} catch (error) {
-			console.warn("[THUMBNAILS] Scroll failed:", error);
-			// Fallback for browsers that don't support scrollIntoView options
-			try {
-				activeThumb.scrollIntoView();
-			} catch (fallbackError) {
-				console.warn("[THUMBNAILS] Scroll failed:", fallbackError);
+			// First attempt: standard method
+			if ("scrollIntoView" in activeThumb) {
+				try {
+					activeThumb.scrollIntoView({
+						behavior: "smooth",
+						block: "center",
+					});
+				} catch (error) {
+					// Fallback to simple scrollIntoView without options
+					activeThumb.scrollIntoView();
+				}
+			} else if (sidebarRef.current) {
+				// Fallback: manual scroll calculation
+				const container = sidebarRef.current;
+				const containerRect = container.getBoundingClientRect();
+
+				// Calculate position to center element
+				const targetScroll =
+					(activeThumb as HTMLElement).offsetTop -
+					container.clientHeight / 2 +
+					rect.height / 2;
+
+				// Smooth scroll with native API
+				container.scrollTo({
+					top: targetScroll,
+					behavior: "smooth",
+				});
 			}
+		} catch (error) {
+			console.warn("[THUMBNAILS] All scroll methods failed:", error);
 		}
 
 		// Reset scrolling flag after animation

@@ -22,7 +22,7 @@ const imageWrapperVariants = cva("flex items-center justify-center", {
 		size: {
 			small: "h-[103.60px] w-[83px] md:h-[260px] md:w-52",
 			medium: "h-[207px] w-[166px] md:h-[414.40px] md:w-[332px]",
-			large: "min-h-none w-screen md:h-[140vh] md:min-h-[140vh]",
+			large: "min-h-screen w-screen md:min-h-[100vh] md:w-screen",
 		},
 	},
 	defaultVariants: {
@@ -35,7 +35,7 @@ const imageVariants = cva("object-cover", {
 		size: {
 			small: "h-full w-full",
 			medium: "h-full w-full",
-			large: "min-h-screen min-w-screen object-cover",
+			large: "min-h-screen w-full object-cover",
 		},
 	},
 	defaultVariants: {
@@ -90,7 +90,7 @@ const listContainerVariants = cva(
 			spacing: {
 				default: "gap-2",
 				expanded: "gap-2",
-				fullscreen: "",
+				fullscreen: "gap-0",
 			},
 		},
 		defaultVariants: {
@@ -149,11 +149,11 @@ export const ListView = () => {
 			const imageId = pendingScrollRef.current;
 			pendingScrollRef.current = null;
 
-			// Scroll immédiatement sans attendre
+			// Use a proper ScrollBehavior instead of "instant"
 			const element = document.getElementById(`image-wrapper-${imageId}`);
 			if (element) {
 				element.scrollIntoView({
-					behavior: "instant",
+					behavior: "auto", // Use "auto" instead of "instant" for better compatibility
 					block: currentGlobalSizeState === 2 ? "start" : "center",
 					inline: "nearest",
 				});
@@ -217,7 +217,7 @@ export const ListView = () => {
 				if (scrollStateRef.current?.originalScrollY !== undefined) {
 					window.scrollTo({
 						top: scrollStateRef.current?.originalScrollY || 0,
-						behavior: "instant",
+						behavior: "auto", // Use standard "auto" instead of "instant"
 					});
 					scrollStateRef.current = null;
 				}
