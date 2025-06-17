@@ -348,7 +348,7 @@ const Video = ({
 				ref={videoRef}
 				className={clsx(
 					aspectClass,
-					"h-full w-full object-cover",
+					"h-auto w-full object-cover",
 					className,
 					hasError && "hidden",
 				)}
@@ -386,10 +386,17 @@ interface MediaItemProps {
 	item: NonNullable<Projects["gallery"]>[0];
 	title?: string;
 	className?: string;
+	ratio?: "16/9" | "4/3" | "1/1" | "3/4" | "9/16" | "4/5";
 	[key: string]: unknown;
 }
 
-const MediaItem = ({ item, title, className, ...props }: MediaItemProps) => {
+const MediaItem = ({
+	item,
+	title,
+	className,
+	ratio = "16/9",
+	...props
+}: MediaItemProps) => {
 	if (!item) {
 		return null;
 	}
@@ -405,6 +412,7 @@ const MediaItem = ({ item, title, className, ...props }: MediaItemProps) => {
 				item={mediaItem}
 				title={title}
 				className={className}
+				ratio={ratio}
 				{...props}
 			/>
 		);
@@ -437,7 +445,7 @@ const MediaItem = ({ item, title, className, ...props }: MediaItemProps) => {
 				className={className}
 				src={src}
 				alt={item.alt || title || "Project video"}
-				ratio="16/9"
+				ratio={ratio}
 				{...props}
 			/>
 		);
@@ -446,7 +454,7 @@ const MediaItem = ({ item, title, className, ...props }: MediaItemProps) => {
 	return (
 		<Image
 			className={className}
-			ratio="16/9"
+			ratio={ratio}
 			src={src}
 			alt={item.alt || title || "Project image"}
 			{...props}
@@ -520,10 +528,11 @@ const MainImage = ({
 								}}
 							>
 								<MediaItem
-									className="h-full w-full object-cover"
+									className="size-full object-cover"
 									item={item}
 									title={title}
 									draggable={false}
+									ratio="16/9"
 								/>
 							</motion.div>
 						</AnimatePresence>
@@ -549,21 +558,23 @@ const Carousel = ({
 				<button
 					key={item.asset?._ref}
 					className={clsx(
-						"h-full max-h-[61px] max-w-[108px] cursor-pointer border-0 bg-white p-0",
+						"cursor-pointer border-0 bg-white p-0",
 						currentIndex !== index && "opacity-50",
 					)}
 					onClick={() => setCurrentIndex(index)}
 					type="button"
 				>
-					<MediaItem
-						item={item}
-						alt={item.alt || ""}
-						draggable={false}
-						className="h-full w-full bg-white object-cover"
-						ratio="16/9"
-						controls={false}
-						muted={true}
-					/>
+					<div className="w-[108px] h-[61px] overflow-hidden">
+						<MediaItem
+							item={item}
+							alt={item.alt || ""}
+							draggable={false}
+							className="w-full h-full cursor-pointer bg-white object-cover"
+							ratio="16/9"
+							controls={false}
+							muted={true}
+						/>
+					</div>
 				</button>
 			))}
 		</div>

@@ -99,7 +99,7 @@ export const AboutModal = () => {
 								</div>
 								<div className="flex flex-col items-start justify-start gap-2">
 									<h2 className="font-normal font-serif leading-none">
-										{t("aboutModal.awards")}
+										{t("aboutModal.press")}
 									</h2>
 									<div className="flex flex-col gap-2 pl-4">
 										<div className="justify-start">

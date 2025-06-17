@@ -56,7 +56,7 @@ i18n
 					projects: "Projets",
 					aboutModal: {
 						title: "À Propos",
-						awards: "Prix",
+						press: "Presse - Exposition",
 					},
 				},
 				lab: {
@@ -75,7 +75,7 @@ i18n
 					projects: "Projects",
 					aboutModal: {
 						title: "About",
-						awards: "Awards",
+						press: "Press - Exhibition",
 					},
 				},
 				lab: {

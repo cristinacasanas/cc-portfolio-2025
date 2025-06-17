@@ -114,7 +114,7 @@ export const Thumbnail = ({
 							key={videoKey}
 							className={clsx(
 								className,
-								"absolute inset-0 h-full w-full bg-white object-cover",
+								"absolute inset-0 bg-white object-cover transition-opacity duration-500",
 							)}
 							src={mediaUrl}
 							autoPlay
@@ -127,14 +127,17 @@ export const Thumbnail = ({
 							<track kind="captions" />
 						</video>
 						{!mediaUrl && (
-							<div className="absolute inset-0 flex items-center justify-center bg-gray-200 text-gray-500">
+							<div className="absolute inset-0 flex items-center justify-center bg-gray-200 text-gray-500 transition-opacity duration-500">
 								Video URL missing
 							</div>
 						)}
 					</>
 				) : (
 					<Image
-						className={clsx(className, "h-full w-full object-cover")}
+						className={clsx(
+							className,
+							"h-full w-full object-cover transition-opacity duration-500",
+						)}
 						ratio={ratio}
 						src={mediaUrl}
 						alt={item.title || "Thumbnail"}
