@@ -31,7 +31,7 @@ function App() {
 	const { category, project } = useSearch({ from: "/" });
 
 	const { data } = useQuery({
-		queryKey: ["projects", { category, project }],
+		queryKey: ["main-projects", { category, project }],
 		queryFn: async () => {
 			if (project) {
 				const projectData = await client.fetch<ProjectWithCategories[]>(
@@ -51,6 +51,9 @@ function App() {
 				await client.fetch<ProjectWithCategories[]>(getAllProjects);
 			return results;
 		},
+		staleTime: 2 * 60 * 1000, // 2 minutes
+		gcTime: 10 * 60 * 1000, // 10 minutes
+		refetchOnWindowFocus: false,
 	});
 
 	return (

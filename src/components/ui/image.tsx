@@ -16,9 +16,17 @@ export type ImageProps = React.ImgHTMLAttributes<HTMLImageElement> & {
 	ratio?: AspectRatio;
 	className?: string;
 	alt: string;
+	priority?: boolean; // Add priority prop to override lazy loading
 };
 
-export const Image = ({ ratio, className, src, alt, ...props }: ImageProps) => {
+export const Image = ({
+	ratio,
+	className,
+	src,
+	alt,
+	priority = false,
+	...props
+}: ImageProps) => {
 	const [hasError, setHasError] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
 
@@ -74,6 +82,8 @@ export const Image = ({ ratio, className, src, alt, ...props }: ImageProps) => {
 				alt={alt}
 				onError={handleError}
 				onLoad={handleLoad}
+				loading={priority ? "eager" : "lazy"}
+				decoding="async"
 				{...props}
 			/>
 		</>

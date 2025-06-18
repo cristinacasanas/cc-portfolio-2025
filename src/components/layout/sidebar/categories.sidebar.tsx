@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/useLanguage";
 import { getAllCategories } from "@/lib/queries";
 import { client } from "@/lib/sanity";
 import { useQuery } from "@tanstack/react-query";
@@ -8,6 +9,7 @@ import { Sidebar } from "../sidebar";
 
 export const CategoriesSidebar = () => {
 	const { category } = useSearch({ from: "/" });
+	const { getLocalizedContent } = useLanguage();
 
 	const { data } = useQuery({
 		queryKey: ["categories"],
@@ -53,7 +55,10 @@ export const CategoriesSidebar = () => {
 											: "text-text-secondary",
 									)}
 								>
-									{categoryItem.title?.fr || categoryItem.title?.en || ""}
+									{getLocalizedContent(
+										categoryItem.title?.fr || "",
+										categoryItem.title?.en || "",
+									)}
 								</Link>
 							))}
 						</div>

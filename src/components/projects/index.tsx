@@ -1,12 +1,13 @@
 import Plus from "@/components/ui/icons/plus";
 import { Image } from "@/components/ui/image";
 import { useLanguage } from "@/hooks/useLanguage";
-import { urlFor } from "@/lib/sanity";
+import { urlForGallery, urlForThumbnail } from "@/lib/sanity";
 import {
 	clear as clearScrollService,
 	registerProject,
 } from "@/lib/scroll.service";
 import { getVideoUrl, isVideo } from "@/utils/video";
+import {} from "@tanstack/react-router";
 import clsx from "clsx";
 import { AnimatePresence, type PanInfo, motion } from "framer-motion";
 import React, { useEffect, useRef } from "react";
@@ -95,9 +96,7 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 		const isMobile = window.innerWidth < 768;
 
 		const observerOptions = {
-			threshold: isTouchDevice
-				? [0, 0.2, 0.4, 0.6, 0.8, 1.0]
-				: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+			threshold: isTouchDevice ? [0, 0.5, 1.0] : [0, 0.25, 0.5, 0.75, 1.0],
 			rootMargin: isMobile ? "-15% 0px" : "-20% 0px",
 		};
 
@@ -133,101 +132,116 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 		};
 
 		let lastEventTime = 0;
-		let lastScrollY = window.scrollY;
-		let scrollVelocity = 0;
+		let lastActiveState = false;
+		let requestAnimationFrameId: number | null = null;
 
-		const observer = new IntersectionObserver((entries) => {
-			const now = Date.now();
-			const currentScrollY = window.scrollY;
-
-			// Calculer la vélocité de scroll
-			scrollVelocity = Math.abs(currentScrollY - lastScrollY);
-			lastScrollY = currentScrollY;
-
-			// Throttle adaptatif basé sur la vélocité de scroll
-			const adaptiveThrottle =
-				scrollVelocity > 300 ? 300 : isTouchDevice ? 200 : 100;
-
-			if (now - lastEventTime < adaptiveThrottle) return;
-			lastEventTime = now;
-
-			for (const entry of entries) {
-				const boundingRect = entry.boundingClientRect;
-				const visibleRatio = calculateVisibleRatio(boundingRect);
-				const centrality = calculateCentrality(boundingRect);
-				const enteringFromTop = isEnteringFromTop(boundingRect);
-				const isLastProject = projectsRegistry.isLastProject(projectId);
-				const isAtBottom = isNearBottomOfPage();
-
-				// Vérifier si on est au tout début de la page
-				const isAtTopOfPage = window.scrollY < 100;
-				const isFirstProject =
-					projectsRegistry.projects.size > 0 &&
-					Array.from(projectsRegistry.projects.entries()).sort(
-						([, a], [, b]) => a.position - b.position,
-					)[0][0] === projectId;
-
-				// Calculer un score de visibilité unifié
-				let visibilityScore = visibleRatio * 0.5 + centrality * 0.5;
-
-				if (enteringFromTop) {
-					visibilityScore += 0.2;
-				}
-
-				if (isLastProject && isAtBottom && visibleRatio > 0.2) {
-					visibilityScore += 0.3;
-				}
-
-				// Bonus spécial pour le premier projet quand on est en haut de page
-				if (isFirstProject && isAtTopOfPage && visibleRatio > 0.3) {
-					visibilityScore += 0.4;
-				}
-
-				// Seuils plus élevés pour les appareils tactiles et les scrolls rapides
-				const activeThreshold =
-					(isTouchDevice ? 0.7 : 0.6) + (scrollVelocity > 200 ? 0.1 : 0);
-				const visibilityThreshold = isTouchDevice ? 0.25 : 0.2;
-
-				// Déterminer si le projet est actif
-				const isActive =
-					(centrality > activeThreshold && visibleRatio > 0.4) ||
-					enteringFromTop ||
-					(isLastProject && isAtBottom && visibleRatio > visibilityThreshold) ||
-					(isFirstProject && isAtTopOfPage && visibleRatio > 0.3);
-
-				// Toujours émettre l'événement si le projet est visible
-				if (entry.isIntersecting && visibleRatio > 0.15) {
-					const event = new CustomEvent("projectInView", {
-						detail: {
-							projectId,
-							isActive,
-							intersectionRatio: visibilityScore,
-							centrality,
-							visibleRatio,
-							enteringFromTop,
-						},
-					});
-					window.dispatchEvent(event);
-				} else if (!entry.isIntersecting) {
-					// Émettre un événement de sortie
-					const event = new CustomEvent("projectInView", {
-						detail: {
-							projectId,
-							isActive: false,
-							intersectionRatio: 0,
-							centrality: 0,
-							visibleRatio: 0,
-							enteringFromTop: false,
-						},
-					});
-					window.dispatchEvent(event);
-				}
+		const debouncedObserver = (entries: IntersectionObserverEntry[]) => {
+			// Cancel any pending animation frame
+			if (requestAnimationFrameId) {
+				cancelAnimationFrame(requestAnimationFrameId);
 			}
-		}, observerOptions);
+
+			requestAnimationFrameId = requestAnimationFrame(() => {
+				const now = Date.now();
+
+				// More aggressive throttling - minimum 250ms between events
+				if (now - lastEventTime < 250) return;
+				lastEventTime = now;
+
+				for (const entry of entries) {
+					const boundingRect = entry.boundingClientRect;
+					const visibleRatio = calculateVisibleRatio(boundingRect);
+					const centrality = calculateCentrality(boundingRect);
+					const enteringFromTop = isEnteringFromTop(boundingRect);
+					const isLastProject = projectsRegistry.isLastProject(projectId);
+					const isAtBottom = isNearBottomOfPage();
+
+					// Vérifier si on est au tout début de la page
+					const isAtTopOfPage = window.scrollY < 100;
+					const isFirstProject =
+						projectsRegistry.projects.size > 0 &&
+						Array.from(projectsRegistry.projects.entries()).sort(
+							([, a], [, b]) => a.position - b.position,
+						)[0][0] === projectId;
+
+					// Calculer un score de visibilité unifié
+					let visibilityScore = visibleRatio * 0.5 + centrality * 0.5;
+
+					if (enteringFromTop) {
+						visibilityScore += 0.2;
+					}
+
+					if (isLastProject && isAtBottom && visibleRatio > 0.2) {
+						visibilityScore += 0.3;
+					}
+
+					// Bonus spécial pour le premier projet quand on est en haut de page
+					if (isFirstProject && isAtTopOfPage && visibleRatio > 0.3) {
+						visibilityScore += 0.4;
+					}
+
+					// Seuils plus élevés pour les appareils tactiles
+					const activeThreshold = isTouchDevice ? 0.7 : 0.6;
+					const visibilityThreshold = isTouchDevice ? 0.3 : 0.25;
+
+					// Déterminer si le projet est actif
+					const isActive =
+						(centrality > activeThreshold && visibleRatio > 0.4) ||
+						enteringFromTop ||
+						(isLastProject &&
+							isAtBottom &&
+							visibleRatio > visibilityThreshold) ||
+						(isFirstProject && isAtTopOfPage && visibleRatio > 0.3);
+
+					// Only emit event if active state has changed or if visibility significantly changed
+					const shouldEmitEvent =
+						entry.isIntersecting &&
+						(isActive !== lastActiveState ||
+							(!lastActiveState && visibleRatio > 0.2));
+
+					if (shouldEmitEvent) {
+						lastActiveState = isActive;
+						const event = new CustomEvent("projectInView", {
+							detail: {
+								projectId,
+								isActive,
+								intersectionRatio: visibilityScore,
+								centrality,
+								visibleRatio,
+								enteringFromTop,
+							},
+						});
+						window.dispatchEvent(event);
+					} else if (!entry.isIntersecting && lastActiveState) {
+						// Only emit exit event if we were previously active
+						lastActiveState = false;
+						const event = new CustomEvent("projectInView", {
+							detail: {
+								projectId,
+								isActive: false,
+								intersectionRatio: 0,
+								centrality: 0,
+								visibleRatio: 0,
+								enteringFromTop: false,
+							},
+						});
+						window.dispatchEvent(event);
+					}
+				}
+			});
+		};
+
+		const observer = new IntersectionObserver(
+			debouncedObserver,
+			observerOptions,
+		);
 
 		observer.observe(ref.current);
 
 		return () => {
+			if (requestAnimationFrameId) {
+				cancelAnimationFrame(requestAnimationFrameId);
+			}
 			if (ref.current) {
 				observer.unobserve(ref.current);
 			}
@@ -274,119 +288,13 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 	}
 };
 
-// Video component with the same props interface as Image
-const Video = ({
-	className,
-	src,
-	alt,
-	ratio = "16/9",
-	...props
-}: {
-	className?: string;
-	src: string;
-	alt: string;
-	ratio?: "16/9" | "4/3" | "1/1" | "3/4" | "9/16" | "4/5";
-}) => {
-	const [hasError, setHasError] = React.useState(false);
-	const videoRef = React.useRef<HTMLVideoElement>(null);
-
-	// Get aspect ratio class
-	const aspectClass = React.useMemo(() => {
-		switch (ratio) {
-			case "16/9":
-				return "aspect-video";
-			case "4/3":
-				return "aspect-[4/3]";
-			case "1/1":
-				return "aspect-square";
-			case "3/4":
-				return "aspect-[3/4]";
-			case "9/16":
-				return "aspect-[9/16]";
-			case "4/5":
-				return "aspect-[4/5]";
-			default:
-				return "aspect-video";
-		}
-	}, [ratio]);
-
-	// Try to reload the video if it fails to load
-	React.useEffect(() => {
-		let retryCount = 0;
-		const maxRetries = 2;
-
-		const tryReload = () => {
-			if (videoRef.current && hasError && retryCount < maxRetries) {
-				retryCount++;
-				videoRef.current.load();
-			}
-		};
-
-		if (hasError) {
-			const timer = setTimeout(tryReload, 1000);
-			return () => clearTimeout(timer);
-		}
-	}, [hasError]);
-
-	if (!src) {
-		return (
-			<div
-				className={clsx(
-					aspectClass,
-					"flex items-center justify-center bg-gray-100",
-					className,
-				)}
-			>
-				<span className="text-gray-400">Video source missing</span>
-			</div>
-		);
-	}
-
-	return (
-		<>
-			<video
-				ref={videoRef}
-				className={clsx(
-					aspectClass,
-					"h-auto w-full object-cover",
-					className,
-					hasError && "hidden",
-				)}
-				src={src}
-				title={alt}
-				playsInline
-				autoPlay
-				loop
-				muted
-				onError={() => setHasError(true)}
-				onLoadedData={() => setHasError(false)}
-				{...props}
-			>
-				<track kind="captions" />
-				Your browser does not support the video tag.
-			</video>
-
-			{hasError && (
-				<div
-					className={clsx(
-						aspectClass,
-						"flex items-center justify-center bg-gray-100",
-						className,
-					)}
-				>
-					<span className="text-gray-500">Failed to load video</span>
-				</div>
-			)}
-		</>
-	);
-};
-
 // Media item component that handles both images and videos
 interface MediaItemProps {
 	item: NonNullable<Projects["gallery"]>[0];
 	title?: string;
 	className?: string;
 	ratio?: "16/9" | "4/3" | "1/1" | "3/4" | "9/16" | "4/5";
+	priority?: boolean;
 	[key: string]: unknown;
 }
 
@@ -395,6 +303,7 @@ const MediaItem = ({
 	title,
 	className,
 	ratio = "16/9",
+	priority = false,
 	...props
 }: MediaItemProps) => {
 	if (!item) {
@@ -413,6 +322,7 @@ const MediaItem = ({
 				title={title}
 				className={className}
 				ratio={ratio}
+				priority={priority}
 				{...props}
 			/>
 		);
@@ -431,8 +341,11 @@ const MediaItem = ({
 			// Get video URL using the utility function
 			src = getVideoUrl(item.asset._ref);
 		} else {
-			// Get image URL using Sanity's urlFor
-			src = urlFor(item).url();
+			// Use optimized image URL based on context
+			const isGalleryItem = className?.includes("gallery") || ratio === "16/9";
+			src = isGalleryItem
+				? urlForGallery(item).url()
+				: urlForThumbnail(item).url();
 		}
 	} catch (error) {
 		console.error("Error generating URL:", error);
@@ -456,7 +369,8 @@ const MediaItem = ({
 			className={className}
 			ratio={ratio}
 			src={src}
-			alt={item.alt || title || "Project image"}
+			alt={item.alt || title || "Project content"}
+			priority={priority || ratio === "16/9"} // Priority for main gallery images or explicit priority
 			{...props}
 		/>
 	);
@@ -573,6 +487,7 @@ const Carousel = ({
 							ratio="16/9"
 							controls={false}
 							muted={true}
+							priority={index === currentIndex} // Only prioritize current image
 						/>
 					</div>
 				</button>
@@ -660,6 +575,114 @@ const ProjectDescription = ({
 				{localizedDescription}
 			</p>
 		</motion.div>
+	);
+};
+
+// Video component with the same props interface as Image
+const Video = ({
+	className,
+	src,
+	alt,
+	ratio = "16/9",
+	...props
+}: {
+	className?: string;
+	src: string;
+	alt: string;
+	ratio?: "16/9" | "4/3" | "1/1" | "3/4" | "9/16" | "4/5";
+}) => {
+	const [hasError, setHasError] = React.useState(false);
+	const videoRef = React.useRef<HTMLVideoElement>(null);
+
+	// Get aspect ratio class
+	const aspectClass = React.useMemo(() => {
+		switch (ratio) {
+			case "16/9":
+				return "aspect-video";
+			case "4/3":
+				return "aspect-[4/3]";
+			case "1/1":
+				return "aspect-square";
+			case "3/4":
+				return "aspect-[3/4]";
+			case "9/16":
+				return "aspect-[9/16]";
+			case "4/5":
+				return "aspect-[4/5]";
+			default:
+				return "aspect-video";
+		}
+	}, [ratio]);
+
+	// Try to reload the video if it fails to load
+	React.useEffect(() => {
+		let retryCount = 0;
+		const maxRetries = 2;
+
+		const tryReload = () => {
+			if (videoRef.current && hasError && retryCount < maxRetries) {
+				retryCount++;
+				videoRef.current.load();
+			}
+		};
+
+		if (hasError) {
+			const timer = setTimeout(tryReload, 1000);
+			return () => clearTimeout(timer);
+		}
+	}, [hasError]);
+
+	if (!src) {
+		return (
+			<div
+				className={clsx(
+					aspectClass,
+					"flex items-center justify-center bg-gray-100",
+					className,
+				)}
+			>
+				<span className="text-gray-400">Video source missing</span>
+			</div>
+		);
+	}
+
+	return (
+		<>
+			<video
+				ref={videoRef}
+				className={clsx(
+					aspectClass,
+					"h-auto w-full object-cover",
+					className,
+					hasError && "hidden",
+				)}
+				src={src}
+				title={alt}
+				playsInline
+				autoPlay
+				loop
+				muted
+				preload="auto"
+				onError={() => setHasError(true)}
+				onLoadedData={() => setHasError(false)}
+				{...props}
+			>
+				<track kind="captions" />
+				Your browser does not support the video tag.
+			</video>
+
+			{hasError && (
+				<div
+					className={clsx(
+						aspectClass,
+						"flex items-center justify-center bg-gray-100",
+						className,
+					)}
+				>
+					<span className="text-gray-500">Failed to load video</span>
+				</div>
+			)}
+		</>
 	);
 };
 

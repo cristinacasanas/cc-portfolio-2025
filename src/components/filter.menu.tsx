@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/useLanguage";
 import { getAllCategories } from "@/lib/queries";
 import { client } from "@/lib/sanity";
 import { filterMenuStore } from "@/stores/filter-menu.store";
@@ -37,6 +38,7 @@ const FilterContent = ({ isOpen }: { isOpen: boolean }) => {
 	const navigate = useNavigate();
 	const { close: closeOverlay } = useStore(overlayStore);
 	const { close: closeFilterMenu } = useStore(filterMenuStore);
+	const { getLocalizedContent } = useLanguage();
 
 	const { data: categories } = useQuery({
 		queryKey: ["categories"],
@@ -118,7 +120,7 @@ const FilterContent = ({ isOpen }: { isOpen: boolean }) => {
 										!category ? "text-text-primary" : "text-text-secondary",
 									)}
 								>
-									All
+									{getLocalizedContent("Tous", "All")}
 								</div>
 							</button>
 						</motion.div>
@@ -147,7 +149,10 @@ const FilterContent = ({ isOpen }: { isOpen: boolean }) => {
 												: "text-text-secondary",
 										)}
 									>
-										{categoryItem.title?.fr || categoryItem.title?.en || ""}
+										{getLocalizedContent(
+											categoryItem.title?.fr || "",
+											categoryItem.title?.en || "",
+										)}
 									</div>
 								</button>
 							</motion.div>
@@ -163,6 +168,7 @@ const FilterTrigger = ({ isOpen }: { isOpen: boolean }) => {
 	const { toggle: toggleOverlay } = useStore(overlayStore);
 	const { toggle: toggleFilterMenu } = useStore(filterMenuStore);
 	const { category } = useSearch({ from: "/" });
+	const { getLocalizedContent } = useLanguage();
 
 	const { data: categories } = useQuery({
 		queryKey: ["categories"],
@@ -170,16 +176,19 @@ const FilterTrigger = ({ isOpen }: { isOpen: boolean }) => {
 	});
 
 	const selectedCategory = React.useMemo(() => {
-		if (!category) return "All";
+		if (!category) return getLocalizedContent("Tous", "All");
 
 		const foundCategory = categories?.find(
 			(c) => c.slug?.current === category || c._id === category,
 		);
 
 		return foundCategory
-			? foundCategory.title?.fr || foundCategory.title?.en
-			: "All";
-	}, [category, categories]);
+			? getLocalizedContent(
+					foundCategory.title?.fr || "",
+					foundCategory.title?.en || "",
+				)
+			: getLocalizedContent("Tous", "All");
+	}, [category, categories, getLocalizedContent]);
 
 	return (
 		<div
