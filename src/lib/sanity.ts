@@ -93,3 +93,8 @@ export function urlForPlaceholder(
 		.blur(20)
 		.auto("format");
 }
+
+// Fonction pour obtenir l'image originale sans aucune transformation
+export function urlForOriginal(source: { asset?: { _ref: string } } | string) {
+	return builder.image(source).url();
+}

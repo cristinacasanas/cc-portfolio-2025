@@ -131,7 +131,7 @@ export const ThumbnailsSidebar = () => {
 	return (
 		<Sidebar
 			ref={sidebarRef}
-			className="max-h-screen w-full flex-row gap-1.5 md:flex-col md:gap-2.5 md:overflow-y-auto"
+			className="max-h-screen w-full flex-row gap-1.5 px-4 md:flex-col md:gap-2.5 md:overflow-y-auto"
 			position="right"
 		>
 			{data?.map((item) => {

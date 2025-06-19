@@ -56,7 +56,7 @@ i18n
 					projects: "Projets",
 					aboutModal: {
 						title: "À Propos",
-						press: "Presse - Exposition",
+						price: "Prix",
 					},
 				},
 				lab: {
@@ -75,7 +75,7 @@ i18n
 					projects: "Projects",
 					aboutModal: {
 						title: "About",
-						press: "Press - Exhibition",
+						price: "Price",
 					},
 				},
 				lab: {
