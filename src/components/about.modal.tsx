@@ -11,7 +11,6 @@ import { useTranslation } from "react-i18next";
 // Constants
 const CACHE_DURATION_ONE_HOUR = 60 * 60 * 1000;
 const CACHE_DURATION_EIGHT_HOURS = 8 * 60 * 60 * 1000;
-const PORTRAIT_WIDTH = 100;
 
 // Types
 interface SanityImageAsset {
@@ -143,7 +142,7 @@ const useNetworkData = () => {
 const PortraitSection = ({ aboutData }: { aboutData: AboutData[] }) => (
 	<div className="flex w-full justify-end">
 		<Image
-			className={`object-cover p-0.5 w-[${PORTRAIT_WIDTH}px]`}
+			className="w-[80px] object-cover p-0.5 md:w-[100px]"
 			src={
 				aboutData?.[0]?.image
 					? urlForOriginal(aboutData[0].image)
@@ -213,7 +212,7 @@ const NetworkSection = ({ networkData }: { networkData: NetworkData }) => {
 	const isExternalLink = (url: string) => url.startsWith("http");
 
 	return (
-		<div className="mt-auto flex flex-col gap-4">
+		<div className="flex flex-col gap-3">
 			{networkData?.links?.map((link: NetworkLink) => (
 				<a
 					key={link.url}
@@ -246,29 +245,33 @@ export const AboutModal = () => {
 				animate={{ x: 0, opacity: 1 }}
 				exit={{ x: -100, opacity: 0 }}
 				transition={{ duration: 0.3 }}
-				className="absolute top-[var(--header-height)] left-0 z-50 inline-flex h-[calc(100dvh-var(--header-height))] w-screen flex-col items-start justify-between border-black bg-background-primary pt-7 pr-2 pb-6 pl-4 backdrop-blur-sm md:w-[455px] md:border-r md:pt-14"
+				className="absolute top-[var(--header-height)] left-0 z-50 flex h-[calc(100dvh-var(--header-height))] w-screen flex-col border-black bg-background-primary backdrop-blur-sm md:w-[455px] md:border-r"
 			>
-				<div className="flex h-full max-h-[calc(100dvh-var(--header-height))] flex-col gap-4 pr-6 md:pr-9">
-					<PortraitSection aboutData={aboutData || []} />
+				<div className="flex h-full min-h-0 flex-col overflow-hidden">
+					<div className="flex-shrink-0 px-4 pt-4 md:px-9 md:pt-14">
+						<PortraitSection aboutData={aboutData || []} />
+					</div>
 
-					<div className="flex flex-1 flex-col-reverse items-start justify-between self-stretch md:flex-row md:gap-0">
-						<div className="inline-flex flex-1 flex-col items-start justify-start self-stretch md:flex-0">
-							<div className="flex flex-col items-start justify-start gap-10 md:gap-20">
-								<DescriptionSection
-									aboutData={aboutData || []}
-									currentLanguage={currentLanguage}
-									title={t("aboutModal.title")}
-								/>
+					<div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 md:px-9">
+						<div className="flex flex-col gap-8 py-4 md:gap-12 md:py-6">
+							<DescriptionSection
+								aboutData={aboutData || []}
+								currentLanguage={currentLanguage}
+								title={t("aboutModal.title")}
+							/>
 
-								<AwardsSection
-									aboutData={aboutData || []}
-									pressTitle={t("aboutModal.price")}
-								/>
-							</div>
+							<AwardsSection
+								aboutData={aboutData || []}
+								pressTitle={t("aboutModal.price")}
+							/>
 						</div>
 					</div>
 
-					{networkData && <NetworkSection networkData={networkData} />}
+					{networkData && (
+						<div className="flex-shrink-0 px-4 py-4 md:px-9 md:py-6">
+							<NetworkSection networkData={networkData} />
+						</div>
+					)}
 				</div>
 			</motion.div>
 		</AnimatePresence>
