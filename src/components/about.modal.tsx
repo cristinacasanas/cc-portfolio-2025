@@ -165,7 +165,7 @@ const DescriptionSection = ({
 	const portableTextComponents = createPortableTextComponents();
 
 	return (
-		<div className="flex min-w-auto flex-col items-start justify-start gap-2 md:min-w-96">
+		<div className="flex min-w-auto flex-1 flex-col items-start justify-start gap-2 md:min-w-96">
 			<h2 className={textStyles.serifNormal}>{title}</h2>
 			<div className="flex flex-col items-start justify-start gap-6 self-stretch pl-4">
 				<div>
@@ -253,7 +253,7 @@ export const AboutModal = () => {
 					</div>
 
 					<div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 md:px-9">
-						<div className="flex flex-col gap-8 py-4 md:gap-12 md:py-6">
+						<div className="flex flex-col gap-4 py-4 md:gap-12 md:py-6">
 							<DescriptionSection
 								aboutData={aboutData || []}
 								currentLanguage={currentLanguage}
