@@ -21,19 +21,30 @@ export function urlFor(source: { asset?: { _ref: string } } | string) {
 export function urlForThumbnail(source: { asset?: { _ref: string } } | string) {
 	return builder
 		.image(source)
-		.width(300)
-		.height(225)
+		.width(400)
+		.height(300)
 		.fit("crop")
-		.quality(75)
-		.format("webp");
+		.quality(85)
+		.format("webp")
+		.auto("format"); // Laisse Sanity choisir le meilleur format
 }
 
 export function urlForGallery(source: { asset?: { _ref: string } } | string) {
-	return builder.image(source).width(600).quality(80).format("webp");
+	return builder
+		.image(source)
+		.width(1200)
+		.quality(90)
+		.format("webp")
+		.auto("format");
 }
 
 export function urlForMobile(source: { asset?: { _ref: string } } | string) {
-	return builder.image(source).width(400).quality(75).format("webp");
+	return builder
+		.image(source)
+		.width(600)
+		.quality(85)
+		.format("webp")
+		.auto("format");
 }
 
 export function urlForLab(
@@ -41,12 +52,17 @@ export function urlForLab(
 	size: "small" | "medium" | "large" = "medium",
 ) {
 	const sizes = {
-		small: 200,
-		medium: 350,
-		large: 600,
+		small: 300,
+		medium: 500,
+		large: 800,
 	};
 
-	return builder.image(source).width(sizes[size]).quality(70).format("webp");
+	return builder
+		.image(source)
+		.width(sizes[size])
+		.quality(85)
+		.format("webp")
+		.auto("format");
 }
 
 // Nouvelle fonction pour les thumbnails ultra-optimisés
@@ -55,11 +71,12 @@ export function urlForThumbnailMini(
 ) {
 	return builder
 		.image(source)
-		.width(150)
-		.height(112)
+		.width(200)
+		.height(150)
 		.fit("crop")
-		.quality(60)
-		.format("webp");
+		.quality(75)
+		.format("webp")
+		.auto("format");
 }
 
 // Nouvelle fonction pour le lazy loading avec placeholder
@@ -68,10 +85,11 @@ export function urlForPlaceholder(
 ) {
 	return builder
 		.image(source)
-		.width(50)
-		.height(37)
+		.width(100)
+		.height(75)
 		.fit("crop")
-		.quality(30)
+		.quality(40)
 		.format("webp")
-		.blur(20);
+		.blur(20)
+		.auto("format");
 }

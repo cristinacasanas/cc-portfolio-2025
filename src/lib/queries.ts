@@ -10,7 +10,7 @@ export const getAllProjects = `*[_type == "projects"] | order(orderRank) {
   title,
   slug,
   thumbnail,
-  gallery[0...3], // Limite à 3 images pour réduire la bande passante
+  gallery, // Limite à 3 images pour réduire la bande passante
   description,
   categories,
   "expandedCategories": categories[]-> {

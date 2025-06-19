@@ -1,17 +1,6 @@
 import { ProjectCard } from "@/components/projects";
-import {
-	getAllProjects,
-	getProjectById,
-	getProjectsByCategory,
-} from "@/lib/queries";
-import { client } from "@/lib/sanity";
-import { useQuery } from "@tanstack/react-query";
+import { useProjects } from "@/hooks/use-projects";
 import { createFileRoute, useSearch } from "@tanstack/react-router";
-import type { Categories, Projects } from "studio/sanity.types";
-
-type ProjectWithCategories = Projects & {
-	expandedCategories?: Categories[];
-};
 
 export const Route = createFileRoute("/")({
 	component: App,
@@ -30,32 +19,7 @@ export const Route = createFileRoute("/")({
 function App() {
 	const { category, project } = useSearch({ from: "/" });
 
-	const { data } = useQuery({
-		queryKey: ["main-projects", { category, project }],
-		queryFn: async () => {
-			if (project) {
-				const projectData = await client.fetch<ProjectWithCategories[]>(
-					getProjectById(project),
-				);
-				return projectData;
-			}
-
-			if (category) {
-				const results = await client.fetch<ProjectWithCategories[]>(
-					getProjectsByCategory(category),
-				);
-				return results;
-			}
-
-			const results =
-				await client.fetch<ProjectWithCategories[]>(getAllProjects);
-			return results;
-		},
-		staleTime: 15 * 60 * 1000, // 15 minutes - cache plus long
-		gcTime: 2 * 60 * 60 * 1000, // 2 heures
-		refetchOnWindowFocus: false,
-		refetchOnMount: false,
-	});
+	const { data } = useProjects({ category, project });
 
 	return (
 		<div className="col-span-4 flex h-[100dvh] flex-col gap-10 overflow-y-auto bg-background-primary pb-[calc(85px+24px)] md:h-[calc(100dvh-var(--header-height))] md:gap-20">

@@ -25,7 +25,7 @@ export type AspectRatio =
 	| "3/2"
 	| "9/16";
 
-const imageVariants = cva("w-full h-full object-cover", {
+const imageVariants = cva("size-full object-cover", {
 	variants: {
 		ratio: {
 			"1/1": "aspect-[1/1]",
@@ -130,7 +130,7 @@ export const Image = forwardRef<HTMLImageElement, ImageProps>(
 						src={placeholderSrc}
 						alt="Loading placeholder"
 						className={clsx(
-							"absolute inset-0 w-full h-full object-cover transition-opacity duration-300",
+							"absolute inset-0 size-full object-cover transition-opacity duration-300",
 							imageClassName,
 						)}
 						loading="eager" // Charger le placeholder immédiatement
@@ -144,7 +144,7 @@ export const Image = forwardRef<HTMLImageElement, ImageProps>(
 					src={imageSrc}
 					alt={alt}
 					className={clsx(
-						"w-full h-full object-cover transition-opacity duration-300",
+						"size-full object-cover transition-opacity duration-300",
 						imageLoaded ? "opacity-100" : "opacity-0",
 						imageClassName,
 					)}

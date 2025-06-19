@@ -1,60 +1,31 @@
 import Plus from "@/components/ui/icons/plus";
 import { Image } from "@/components/ui/image";
+import { useProjectVisibility } from "@/hooks/use-project-visibility";
 import { useLanguage } from "@/hooks/useLanguage";
 import { urlForGallery, urlForThumbnail } from "@/lib/sanity";
-import {
-	clear as clearScrollService,
-	registerProject,
-} from "@/lib/scroll.service";
 import { getVideoUrl, isVideo } from "@/utils/video";
 import {} from "@tanstack/react-router";
 import clsx from "clsx";
 import { AnimatePresence, type PanInfo, motion } from "framer-motion";
-import React, { useEffect, useRef } from "react";
+import React from "react";
 import type { Categories, Projects } from "studio/sanity.types";
 
 type ProjectWithCategories = Projects & {
 	expandedCategories?: Categories[];
 };
 
-// Référence globale pour suivre tous les projets et leurs positions
-export const projectsRegistry = {
-	projects: new Map<string, { element: HTMLDivElement; position: number }>(),
-	lastProjectId: null as string | null,
-
-	// Méthode pour enregistrer un projet
-	registerProject(id: string, element: HTMLDivElement, position: number) {
-		this.projects.set(id, { element, position });
-		// Enregistrer également dans le ScrollService
-		registerProject(id, element);
-		// Mettre à jour le dernier projet (celui avec la position la plus élevée)
-		if (
-			this.lastProjectId === null ||
-			position > (this.projects.get(this.lastProjectId)?.position || 0)
-		) {
-			this.lastProjectId = id;
-		}
-	},
-
-	// Méthode pour vérifier si un projet est le dernier
-	isLastProject(id: string): boolean {
-		return id === this.lastProjectId;
-	},
-
-	// Méthode pour nettoyer le registre
-	clear() {
-		this.projects.clear();
-		this.lastProjectId = null;
-		clearScrollService();
-	},
-};
-
 const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 	const [isOpen, setIsOpen] = React.useState(false);
 	const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
 	const [direction, setDirection] = React.useState(0);
-	const ref = useRef<HTMLDivElement>(null);
 	const projectId = project.slug?.current || project._id;
+
+	// Use the custom hook for visibility detection
+	const { ref } = useProjectVisibility({
+		projectId,
+		threshold: 0.5,
+		rootMargin: window.innerWidth < 768 ? "-15% 0px" : "-20% 0px",
+	});
 
 	// Function to handle image navigation
 	const navigateImage = (newIndexInput: number) => {
@@ -70,183 +41,6 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 		setDirection(newIndex > currentImageIndex ? 1 : -1);
 		setCurrentImageIndex(newIndex);
 	};
-
-	// Enregistrer la position du projet lors du montage
-	useEffect(() => {
-		if (!ref.current) return;
-
-		// Calculer la position verticale du projet dans le document
-		const position = ref.current.getBoundingClientRect().top + window.scrollY;
-		projectsRegistry.registerProject(projectId, ref.current, position);
-
-		return () => {
-			// Si tous les projets sont démontés, nettoyer le registre
-			if (document.querySelectorAll("[data-project-id]").length === 1) {
-				projectsRegistry.clear();
-			}
-		};
-	}, [projectId]);
-
-	useEffect(() => {
-		if (!ref.current) return;
-
-		// Détecter si c'est un appareil tactile
-		const isTouchDevice =
-			"ontouchstart" in window || navigator.maxTouchPoints > 0;
-		const isMobile = window.innerWidth < 768;
-
-		const observerOptions = {
-			threshold: isTouchDevice ? [0, 0.5, 1.0] : [0, 0.25, 0.5, 0.75, 1.0],
-			rootMargin: isMobile ? "-15% 0px" : "-20% 0px",
-		};
-
-		// Fonction pour calculer le pourcentage du projet visible dans la fenêtre
-		const calculateVisibleRatio = (rect: DOMRectReadOnly): number => {
-			const visibleTop = Math.max(0, rect.top);
-			const visibleBottom = Math.min(window.innerHeight, rect.bottom);
-			const visibleHeight = Math.max(0, visibleBottom - visibleTop);
-			return visibleHeight / rect.height;
-		};
-
-		// Fonction pour calculer à quel point le projet est centré dans la vue
-		const calculateCentrality = (rect: DOMRectReadOnly): number => {
-			const projectCenter = rect.top + rect.height / 2;
-			const viewportCenter = window.innerHeight / 2;
-			const distanceFromCenter = Math.abs(projectCenter - viewportCenter);
-			const maxDistance = window.innerHeight / 2;
-
-			return 1 - Math.min(1, distanceFromCenter / maxDistance);
-		};
-
-		// Fonction pour déterminer si le projet est entrant par le haut
-		const isEnteringFromTop = (rect: DOMRectReadOnly): boolean => {
-			const topEdgePosition = rect.top;
-			return topEdgePosition >= 0 && topEdgePosition < window.innerHeight * 0.3;
-		};
-
-		// Fonction pour vérifier si on est au bas de la page
-		const isNearBottomOfPage = (): boolean => {
-			const scrollPosition = window.scrollY + window.innerHeight;
-			const documentHeight = document.documentElement.scrollHeight;
-			return documentHeight - scrollPosition < documentHeight * 0.1;
-		};
-
-		let lastEventTime = 0;
-		let lastActiveState = false;
-		let requestAnimationFrameId: number | null = null;
-
-		const debouncedObserver = (entries: IntersectionObserverEntry[]) => {
-			// Cancel any pending animation frame
-			if (requestAnimationFrameId) {
-				cancelAnimationFrame(requestAnimationFrameId);
-			}
-
-			requestAnimationFrameId = requestAnimationFrame(() => {
-				const now = Date.now();
-
-				// More aggressive throttling - minimum 250ms between events
-				if (now - lastEventTime < 250) return;
-				lastEventTime = now;
-
-				for (const entry of entries) {
-					const boundingRect = entry.boundingClientRect;
-					const visibleRatio = calculateVisibleRatio(boundingRect);
-					const centrality = calculateCentrality(boundingRect);
-					const enteringFromTop = isEnteringFromTop(boundingRect);
-					const isLastProject = projectsRegistry.isLastProject(projectId);
-					const isAtBottom = isNearBottomOfPage();
-
-					// Vérifier si on est au tout début de la page
-					const isAtTopOfPage = window.scrollY < 100;
-					const isFirstProject =
-						projectsRegistry.projects.size > 0 &&
-						Array.from(projectsRegistry.projects.entries()).sort(
-							([, a], [, b]) => a.position - b.position,
-						)[0][0] === projectId;
-
-					// Calculer un score de visibilité unifié
-					let visibilityScore = visibleRatio * 0.5 + centrality * 0.5;
-
-					if (enteringFromTop) {
-						visibilityScore += 0.2;
-					}
-
-					if (isLastProject && isAtBottom && visibleRatio > 0.2) {
-						visibilityScore += 0.3;
-					}
-
-					// Bonus spécial pour le premier projet quand on est en haut de page
-					if (isFirstProject && isAtTopOfPage && visibleRatio > 0.3) {
-						visibilityScore += 0.4;
-					}
-
-					// Seuils plus élevés pour les appareils tactiles
-					const activeThreshold = isTouchDevice ? 0.7 : 0.6;
-					const visibilityThreshold = isTouchDevice ? 0.3 : 0.25;
-
-					// Déterminer si le projet est actif
-					const isActive =
-						(centrality > activeThreshold && visibleRatio > 0.4) ||
-						enteringFromTop ||
-						(isLastProject &&
-							isAtBottom &&
-							visibleRatio > visibilityThreshold) ||
-						(isFirstProject && isAtTopOfPage && visibleRatio > 0.3);
-
-					// Only emit event if active state has changed or if visibility significantly changed
-					const shouldEmitEvent =
-						entry.isIntersecting &&
-						(isActive !== lastActiveState ||
-							(!lastActiveState && visibleRatio > 0.2));
-
-					if (shouldEmitEvent) {
-						lastActiveState = isActive;
-						const event = new CustomEvent("projectInView", {
-							detail: {
-								projectId,
-								isActive,
-								intersectionRatio: visibilityScore,
-								centrality,
-								visibleRatio,
-								enteringFromTop,
-							},
-						});
-						window.dispatchEvent(event);
-					} else if (!entry.isIntersecting && lastActiveState) {
-						// Only emit exit event if we were previously active
-						lastActiveState = false;
-						const event = new CustomEvent("projectInView", {
-							detail: {
-								projectId,
-								isActive: false,
-								intersectionRatio: 0,
-								centrality: 0,
-								visibleRatio: 0,
-								enteringFromTop: false,
-							},
-						});
-						window.dispatchEvent(event);
-					}
-				}
-			});
-		};
-
-		const observer = new IntersectionObserver(
-			debouncedObserver,
-			observerOptions,
-		);
-
-		observer.observe(ref.current);
-
-		return () => {
-			if (requestAnimationFrameId) {
-				cancelAnimationFrame(requestAnimationFrameId);
-			}
-			if (ref.current) {
-				observer.unobserve(ref.current);
-			}
-		};
-	}, [projectId]);
 
 	return (
 		<div
@@ -370,7 +164,6 @@ const MediaItem = ({
 			ratio={ratio}
 			src={src}
 			alt={item.alt || title || "Project content"}
-			priority={priority || ratio === "16/9"} // Priority for main gallery images or explicit priority
 			{...props}
 		/>
 	);
@@ -478,16 +271,15 @@ const Carousel = ({
 					onClick={() => setCurrentIndex(index)}
 					type="button"
 				>
-					<div className="w-[108px] h-[61px] overflow-hidden">
+					<div className="h-[61px] w-[108px] overflow-hidden">
 						<MediaItem
 							item={item}
 							alt={item.alt || ""}
 							draggable={false}
-							className="w-full h-full cursor-pointer bg-white object-cover"
+							className="size-full cursor-pointer bg-white object-cover"
 							ratio="16/9"
 							controls={false}
 							muted={true}
-							priority={index === currentIndex} // Only prioritize current image
 						/>
 					</div>
 				</button>
@@ -646,6 +438,12 @@ const Video = ({
 		);
 	}
 
+	React.useEffect(() => {
+		console.log("Video component - src:", src);
+		videoRef.current?.play();
+		console.log("Video component - playing");
+	}, []);
+
 	return (
 		<>
 			<video
@@ -658,8 +456,8 @@ const Video = ({
 				)}
 				src={src}
 				title={alt}
+				autoPlay={true}
 				playsInline
-				autoPlay
 				loop
 				muted
 				preload="auto"
