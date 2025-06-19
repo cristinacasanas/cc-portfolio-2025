@@ -54,12 +54,36 @@ export const AboutModal = () => {
 	const { isOpen } = useStore(aboutStore, (state) => state);
 	const { data } = useQuery({
 		queryKey: ["about"],
-		queryFn: () => client.fetch(`*[_type == "about"]`),
+		queryFn: () =>
+			client.fetch(`*[_type == "about"] {
+			_id,
+			description,
+			image,
+			awards[] {
+				url,
+				placeholder
+			}
+		}`),
+		staleTime: 60 * 60 * 1000, // 1 heure - les données about changent rarement
+		gcTime: 8 * 60 * 60 * 1000, // 8 heures
+		refetchOnWindowFocus: false,
+		refetchOnMount: false,
 	});
 
 	const { data: networkData } = useQuery({
 		queryKey: ["network"],
-		queryFn: () => client.fetch(`*[_type == "network"][0]`),
+		queryFn: () =>
+			client.fetch(`*[_type == "network"][0] {
+			_id,
+			links[] {
+				title,
+				url
+			}
+		}`),
+		staleTime: 60 * 60 * 1000, // 1 heure
+		gcTime: 8 * 60 * 60 * 1000, // 8 heures
+		refetchOnWindowFocus: false,
+		refetchOnMount: false,
 	});
 
 	const { t, i18n } = useTranslation();

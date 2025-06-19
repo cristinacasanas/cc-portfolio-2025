@@ -7,13 +7,12 @@ import { useEffect, useRef, useState } from "react";
 import type { Categories, Projects } from "studio/sanity.types";
 import { Sidebar } from "../sidebar";
 
-// Specific thumbnail queries to ensure all required fields are fetched
+// Queries optimisées pour les thumbnails de la sidebar
 const thumbnailsProjectsQuery = `*[_type == "projects"] | order(orderRank) {
 	_id,
 	title,
 	slug,
 	thumbnail,
-	gallery[0],
 	"expandedCategories": categories[]-> {
 		_id,
 		title,
@@ -27,7 +26,6 @@ const thumbnailsProjectsByCategoryQuery = (categorySlug: string) => `
 		title,
 		slug,
 		thumbnail,
-		gallery[0],
 		"expandedCategories": categories[]-> {
 			_id,
 			title,
@@ -68,7 +66,7 @@ export const ThumbnailsSidebar = () => {
 	}, []);
 
 	const { data } = useQuery({
-		queryKey: ["thumbnails", { category }],
+		queryKey: ["sidebar-thumbnails", { category }],
 		queryFn: async () => {
 			if (category) {
 				return client.fetch<ProjectWithCategories[]>(
@@ -78,8 +76,10 @@ export const ThumbnailsSidebar = () => {
 
 			return client.fetch<ProjectWithCategories[]>(thumbnailsProjectsQuery);
 		},
-		staleTime: 1000 * 60 * 5, // 5 minutes
-		gcTime: 1000 * 60 * 30, // 30 minutes
+		staleTime: 15 * 60 * 1000, // 15 minutes - cache plus long
+		gcTime: 2 * 60 * 60 * 1000, // 2 heures
+		refetchOnWindowFocus: false,
+		refetchOnMount: false,
 	});
 
 	// Simple function to scroll to a thumbnail

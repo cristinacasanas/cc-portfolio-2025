@@ -1,4 +1,4 @@
-import { getAllProjects, getProjectsByCategory } from "@/lib/queries";
+import { getAllProjectsThumbnails } from "@/lib/queries";
 import { client } from "@/lib/sanity";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
@@ -50,81 +50,80 @@ export const MobileThumbnails = () => {
 	const selectionLockRef = useRef(false);
 	const isAtBoundaryRef = useRef<"start" | "near-start" | "end" | null>(null);
 
-	// Always fetch all projects regardless of category
+	// Requête unique optimisée pour tous les projets
 	const { data: allProjects } = useQuery({
-		queryKey: ["allThumbnails"],
+		queryKey: ["allThumbnailsOptimized"],
 		queryFn: async () => {
-			return client.fetch<ProjectWithCategories[]>(getAllProjects);
+			return client.fetch<ProjectWithCategories[]>(getAllProjectsThumbnails);
 		},
+		staleTime: 15 * 60 * 1000, // 15 minutes - cache plus long pour les thumbnails
+		gcTime: 2 * 60 * 60 * 1000, // 2 heures - garde en mémoire plus longtemps
+		refetchOnWindowFocus: false,
+		refetchOnMount: false,
 	});
 
-	// Fetch category data for filtering
-	const { data: categoryProjects } = useQuery({
-		queryKey: ["categoryThumbnails", { category }],
-		queryFn: async () => {
-			if (category) {
-				return client.fetch<ProjectWithCategories[]>(
-					getProjectsByCategory(category),
-				);
-			}
-			return null;
-		},
-		enabled: !!category,
-	});
+	// Filtrage côté client pour éviter une requête supplémentaire
+	const { displayedProjects, matchingProjectIds } = useMemo(() => {
+		if (!allProjects)
+			return { displayedProjects: [], matchingProjectIds: new Set<string>() };
 
-	// Get mapping of projects that match current category
-	const matchingProjectIds = useMemo(() => {
-		if (!categoryProjects) return new Set<string>();
+		if (!category) {
+			return {
+				displayedProjects: allProjects,
+				matchingProjectIds: new Set<string>(),
+			};
+		}
 
-		return new Set(categoryProjects.map((p) => p.slug?.current || p._id || ""));
-	}, [categoryProjects]);
-
-	// Memoize projects processing - sort matching projects first
-	const sortedProjects = useMemo(() => {
-		if (!allProjects) return [];
-
-		// If no category filter is active, return original order
-		if (!category) return [...allProjects];
-
-		// Separate projects into matching and non-matching
+		// Filtrer côté client les projets qui correspondent à la catégorie
 		const matching: ProjectWithCategories[] = [];
 		const nonMatching: ProjectWithCategories[] = [];
+		const matchingIds = new Set<string>();
 
 		for (const project of allProjects) {
-			const projectId = project.slug?.current || project._id || "";
-			if (matchingProjectIds.has(projectId)) {
+			const hasCategory = project.expandedCategories?.some(
+				(cat) => cat.slug?.current === category || cat._id === category,
+			);
+
+			if (hasCategory) {
 				matching.push(project);
+				matchingIds.add(project.slug?.current || project._id || "");
 			} else {
 				nonMatching.push(project);
 			}
 		}
 
-		// Return matching projects first, followed by non-matching
-		return [...matching, ...nonMatching];
-	}, [allProjects, category, matchingProjectIds]);
+		return {
+			displayedProjects: [...matching, ...nonMatching],
+			matchingProjectIds: matchingIds,
+		};
+	}, [allProjects, category]);
 
 	// Get boundary project IDs with more detailed near-boundary info
 	const boundaryIds = useMemo(() => {
-		if (sortedProjects.length < 2) {
+		if (displayedProjects.length < 2) {
 			return {
 				first:
-					sortedProjects[0]?.slug?.current || sortedProjects[0]?._id || null,
+					displayedProjects[0]?.slug?.current ||
+					displayedProjects[0]?._id ||
+					null,
 				second: null,
 				last:
-					sortedProjects[0]?.slug?.current || sortedProjects[0]?._id || null,
+					displayedProjects[0]?.slug?.current ||
+					displayedProjects[0]?._id ||
+					null,
 			};
 		}
 
-		const firstProject = sortedProjects[0];
-		const secondProject = sortedProjects[1];
-		const lastProject = sortedProjects[sortedProjects.length - 1];
+		const firstProject = displayedProjects[0];
+		const secondProject = displayedProjects[1];
+		const lastProject = displayedProjects[displayedProjects.length - 1];
 
 		return {
 			first: firstProject?.slug?.current || firstProject?._id || null,
 			second: secondProject?.slug?.current || secondProject?._id || null,
 			last: lastProject?.slug?.current || lastProject?._id || null,
 		};
-	}, [sortedProjects]);
+	}, [displayedProjects]);
 
 	// Reset all scroll and selection state
 	const resetScrollState = useCallback(() => {
@@ -198,7 +197,7 @@ export const MobileThumbnails = () => {
 	// Optimize first two items rendering
 	useEffect(() => {
 		// Force immediate rendering of first two items for better performance
-		if (sortedProjects.length >= 2 && containerRef.current) {
+		if (displayedProjects.length >= 2 && containerRef.current) {
 			// Set initial scroll position to 0 to ensure first items are visible
 			containerRef.current.scrollLeft = 0;
 
@@ -219,7 +218,7 @@ export const MobileThumbnails = () => {
 				}
 			}
 		}
-	}, [sortedProjects, boundaryIds]);
+	}, [displayedProjects, boundaryIds]);
 
 	// Optimized scroll for all positions including improved start handling
 	const scrollToThumbnail = useCallback(
@@ -588,9 +587,9 @@ export const MobileThumbnails = () => {
 	// Initialize first matching project when data and category change
 	useEffect(() => {
 		// When category changes, select first matching project if available
-		if (category && sortedProjects.length > 0) {
+		if (category && displayedProjects.length > 0) {
 			// Find first matching project when category changes
-			const firstMatchingProject = sortedProjects.find((p) => {
+			const firstMatchingProject = displayedProjects.find((p) => {
 				const projectId = p.slug?.current || p._id || "";
 				return matchingProjectIds.has(projectId);
 			});
@@ -604,8 +603,8 @@ export const MobileThumbnails = () => {
 				}
 			}
 			// Otherwise initialize with first project when data loads
-		} else if (!visibleProject && sortedProjects.length > 0) {
-			const firstProject = sortedProjects[0];
+		} else if (!visibleProject && displayedProjects.length > 0) {
+			const firstProject = displayedProjects[0];
 			const firstProjectId = firstProject.slug?.current || firstProject._id;
 			if (firstProjectId) {
 				resetScrollState();
@@ -613,7 +612,7 @@ export const MobileThumbnails = () => {
 			}
 		}
 	}, [
-		sortedProjects,
+		displayedProjects,
 		visibleProject,
 		category,
 		updateVisibleProject,
@@ -862,7 +861,7 @@ export const MobileThumbnails = () => {
 		return () => {
 			resetScrollState();
 		};
-	}, [sortedProjects, resetScrollState]);
+	}, [displayedProjects, resetScrollState]);
 
 	// Updated to consider category filtering in opacity calculation
 	const getProjectOpacity = useCallback(
@@ -963,7 +962,7 @@ export const MobileThumbnails = () => {
 			ref={containerRef}
 			className="relative mt-2 flex h-auto w-full items-start gap-1.5 self-stretch overflow-x-auto scroll-smooth pb-1 will-change-scroll md:hidden"
 		>
-			{sortedProjects.map(renderThumbnail).filter(Boolean)}
+			{displayedProjects.map(renderThumbnail).filter(Boolean)}
 		</div>
 	);
 };

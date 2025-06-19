@@ -4,7 +4,7 @@ import imageUrlBuilder from "@sanity/image-url";
 export const client = createClient({
 	projectId: import.meta.env.VITE_SANITY_PROJECT_ID,
 	dataset: import.meta.env.VITE_SANITY_DATASET,
-	useCdn: import.meta.env.VITE_SANITY_USE_CDN === "true",
+	useCdn: import.meta.env.VITE_SANITY_USE_CDN !== "false",
 	apiVersion: import.meta.env.VITE_SANITY_API_VERSION,
 	token: import.meta.env.VITE_SANITY_TOKEN,
 });
@@ -21,19 +21,19 @@ export function urlFor(source: { asset?: { _ref: string } } | string) {
 export function urlForThumbnail(source: { asset?: { _ref: string } } | string) {
 	return builder
 		.image(source)
-		.width(400)
-		.height(300)
+		.width(300)
+		.height(225)
 		.fit("crop")
-		.quality(80)
+		.quality(75)
 		.format("webp");
 }
 
 export function urlForGallery(source: { asset?: { _ref: string } } | string) {
-	return builder.image(source).width(800).quality(85).format("webp");
+	return builder.image(source).width(600).quality(80).format("webp");
 }
 
 export function urlForMobile(source: { asset?: { _ref: string } } | string) {
-	return builder.image(source).width(600).quality(80).format("webp");
+	return builder.image(source).width(400).quality(75).format("webp");
 }
 
 export function urlForLab(
@@ -41,10 +41,37 @@ export function urlForLab(
 	size: "small" | "medium" | "large" = "medium",
 ) {
 	const sizes = {
-		small: 300,
-		medium: 500,
-		large: 800,
+		small: 200,
+		medium: 350,
+		large: 600,
 	};
 
-	return builder.image(source).width(sizes[size]).quality(75).format("webp");
+	return builder.image(source).width(sizes[size]).quality(70).format("webp");
+}
+
+// Nouvelle fonction pour les thumbnails ultra-optimisés
+export function urlForThumbnailMini(
+	source: { asset?: { _ref: string } } | string,
+) {
+	return builder
+		.image(source)
+		.width(150)
+		.height(112)
+		.fit("crop")
+		.quality(60)
+		.format("webp");
+}
+
+// Nouvelle fonction pour le lazy loading avec placeholder
+export function urlForPlaceholder(
+	source: { asset?: { _ref: string } } | string,
+) {
+	return builder
+		.image(source)
+		.width(50)
+		.height(37)
+		.fit("crop")
+		.quality(30)
+		.format("webp")
+		.blur(20);
 }

@@ -43,6 +43,10 @@ const FilterContent = ({ isOpen }: { isOpen: boolean }) => {
 	const { data: categories } = useQuery({
 		queryKey: ["categories"],
 		queryFn: () => client.fetch<Categories[]>(getAllCategories),
+		staleTime: 30 * 60 * 1000, // 30 minutes - partagé avec les autres composants
+		gcTime: 4 * 60 * 60 * 1000, // 4 heures
+		refetchOnWindowFocus: false,
+		refetchOnMount: false,
 	});
 
 	const containerVariants = {
@@ -173,6 +177,10 @@ const FilterTrigger = ({ isOpen }: { isOpen: boolean }) => {
 	const { data: categories } = useQuery({
 		queryKey: ["categories"],
 		queryFn: () => client.fetch<Categories[]>(getAllCategories),
+		staleTime: 30 * 60 * 1000, // 30 minutes
+		gcTime: 4 * 60 * 60 * 1000, // 4 heures
+		refetchOnWindowFocus: false,
+		refetchOnMount: false,
 	});
 
 	const selectedCategory = React.useMemo(() => {

@@ -9,11 +9,15 @@ import type { Lab } from "studio/sanity.types";
 
 export const InfiniteImageGrid = () => {
 	const { data } = useQuery({
-		queryKey: ["lab"],
+		queryKey: ["lab-canvas"],
 		queryFn: async () => {
 			const data = await client.fetch<Lab[]>(getLab);
 			return data;
 		},
+		staleTime: 20 * 60 * 1000, // 20 minutes - les images du lab changent moins fréquemment
+		gcTime: 4 * 60 * 60 * 1000, // 4 heures
+		refetchOnWindowFocus: false,
+		refetchOnMount: false,
 	});
 
 	// Flatten all images from all lab entries

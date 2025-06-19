@@ -51,9 +51,10 @@ function App() {
 				await client.fetch<ProjectWithCategories[]>(getAllProjects);
 			return results;
 		},
-		staleTime: 2 * 60 * 1000, // 2 minutes
-		gcTime: 10 * 60 * 1000, // 10 minutes
+		staleTime: 15 * 60 * 1000, // 15 minutes - cache plus long
+		gcTime: 2 * 60 * 60 * 1000, // 2 heures
 		refetchOnWindowFocus: false,
+		refetchOnMount: false,
 	});
 
 	return (

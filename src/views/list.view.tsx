@@ -111,11 +111,15 @@ export const ListView = () => {
 	const pendingScrollRef = useRef<string | number | null>(null);
 
 	const { data } = useQuery({
-		queryKey: ["lab"],
+		queryKey: ["lab-list"],
 		queryFn: async () => {
 			const data = await client.fetch<Lab[]>(getLab);
 			return data;
 		},
+		staleTime: 20 * 60 * 1000, // 20 minutes
+		gcTime: 4 * 60 * 60 * 1000, // 4 heures
+		refetchOnWindowFocus: false,
+		refetchOnMount: false,
 	});
 
 	// Flatten all images from all lab entries and create collection format

@@ -1,91 +1,160 @@
+import { urlForPlaceholder } from "@/lib/sanity";
+import type { ImageUrlBuilder } from "@sanity/image-url/lib/types/builder";
+import { type VariantProps, cva } from "class-variance-authority";
 import clsx from "clsx";
-import { useState } from "react";
+import { type ForwardedRef, forwardRef, useState } from "react";
 
-type AspectRatio = "16/9" | "4/3" | "1/1" | "3/4" | "9/16" | "4/5";
-
-const aspectRatioClasses: Record<AspectRatio, string> = {
-	"16/9": "aspect-video",
-	"4/3": "aspect-[4/3]",
-	"1/1": "aspect-square",
-	"3/4": "aspect-[3/4]",
-	"9/16": "aspect-[9/16]",
-	"4/5": "aspect-[4/5]",
-};
-
-export type ImageProps = React.ImgHTMLAttributes<HTMLImageElement> & {
-	ratio?: AspectRatio;
-	className?: string;
+export interface ImageProps
+	extends Omit<React.ComponentPropsWithoutRef<"img">, "src"> {
+	src?: string | ImageUrlBuilder;
 	alt: string;
-	priority?: boolean; // Add priority prop to override lazy loading
-};
+	ratio?: AspectRatio;
+	imageClassName?: string;
+	usePlaceholder?: boolean; // Nouvelle prop pour activer les placeholders
+}
 
-export const Image = ({
-	ratio,
-	className,
-	src,
-	alt,
-	priority = false,
-	...props
-}: ImageProps) => {
-	const [hasError, setHasError] = useState(false);
-	const [isLoading, setIsLoading] = useState(true);
+export type AspectRatio =
+	| "1/1"
+	| "16/9"
+	| "21/9"
+	| "4/3"
+	| "3/4"
+	| "4/5"
+	| "5/4"
+	| "2/3"
+	| "3/2"
+	| "9/16";
 
-	const aspectClass = ratio ? aspectRatioClasses[ratio] : "";
+const imageVariants = cva("w-full h-full object-cover", {
+	variants: {
+		ratio: {
+			"1/1": "aspect-[1/1]",
+			"16/9": "aspect-[16/9]",
+			"21/9": "aspect-[21/9]",
+			"4/3": "aspect-[4/3]",
+			"3/4": "aspect-[3/4]",
+			"4/5": "aspect-[4/5]",
+			"5/4": "aspect-[5/4]",
+			"2/3": "aspect-[2/3]",
+			"3/2": "aspect-[3/2]",
+			"9/16": "aspect-[9/16]",
+		},
+	},
+	defaultVariants: {
+		ratio: "4/5",
+	},
+});
 
-	const handleError = () => {
-		setHasError(true);
-		setIsLoading(false);
-	};
+export interface ImageWrapperProps extends VariantProps<typeof imageVariants> {
+	className?: string;
+}
 
-	const handleLoad = () => {
-		setIsLoading(false);
-	};
+function getImageSrc(src?: string | ImageUrlBuilder): string {
+	if (!src) return "";
 
-	if (!src || hasError) {
-		return (
-			<div
-				className={clsx(
-					aspectClass,
-					"flex h-auto items-center justify-center bg-gray-200",
-					className,
-				)}
-				role="img"
-				aria-label={alt || "Image non disponible"}
-			>
-				<span className="text-gray-400 text-xs">Image non disponible</span>
-			</div>
-		);
+	if (typeof src === "string") {
+		return src;
 	}
 
-	return (
-		<>
-			{isLoading && (
-				<div
-					className={clsx(
-						aspectClass,
-						"h-auto animate-pulse bg-gray-100",
-						className,
-					)}
-					role="img"
-					aria-label="Chargement de l'image..."
-				/>
-			)}
-			{/* biome-ignore lint/a11y/useAltText: alt is required prop, false positive */}
-			<img
-				className={clsx(
-					aspectClass,
-					"h-auto object-cover",
-					isLoading ? "hidden" : "block",
-					className,
+	// Handle ImageUrlBuilder object
+	if (src && typeof src === "object" && "url" in src) {
+		return src.url();
+	}
+
+	return "";
+}
+
+// Fonction pour obtenir un placeholder optimisé
+function getPlaceholderSrc(src?: string | ImageUrlBuilder): string {
+	if (!src) return "";
+
+	if (typeof src === "string") {
+		// Si c'est déjà une URL, essayer de générer un placeholder via Sanity
+		try {
+			// Extraire le asset ID si possible et générer un placeholder
+			const assetMatch = src.match(/image-([a-zA-Z0-9]+)-/);
+			if (assetMatch) {
+				return urlForPlaceholder({ asset: { _ref: assetMatch[0] } }).url();
+			}
+		} catch {
+			// Si ça échoue, retourner une image très petite
+			return `${src}?w=50&h=37&fit=crop&q=30&blur=20`;
+		}
+	}
+
+	// Handle ImageUrlBuilder object
+	if (src && typeof src === "object" && "url" in src) {
+		try {
+			// Convertir en string d'abord pour eviter l'erreur de type
+			const srcString = src.url();
+			return urlForPlaceholder({ asset: { _ref: srcString } }).url();
+		} catch {
+			return `${src.url()}?w=50&h=37&fit=crop&q=30&blur=20`;
+		}
+	}
+
+	return "";
+}
+
+export const Image = forwardRef<HTMLImageElement, ImageProps>(
+	(
+		{
+			className,
+			imageClassName,
+			ratio = "4/5",
+			src,
+			alt,
+			usePlaceholder = true,
+			loading = "lazy", // Lazy loading par défaut
+			decoding = "async", // Décodage asynchrone par défaut
+			...props
+		},
+		ref: ForwardedRef<HTMLImageElement>,
+	) => {
+		const [imageLoaded, setImageLoaded] = useState(false);
+		const [imageError, setImageError] = useState(false);
+
+		const imageSrc = getImageSrc(src);
+		const placeholderSrc = usePlaceholder ? getPlaceholderSrc(src) : "";
+
+		// Si pas de src, ne pas afficher l'image
+		if (!imageSrc) {
+			return null;
+		}
+
+		return (
+			<div className={clsx(imageVariants({ ratio }), className)}>
+				{/* Placeholder visible pendant le chargement */}
+				{usePlaceholder && placeholderSrc && !imageLoaded && !imageError && (
+					<img
+						src={placeholderSrc}
+						alt="Loading placeholder"
+						className={clsx(
+							"absolute inset-0 w-full h-full object-cover transition-opacity duration-300",
+							imageClassName,
+						)}
+						loading="eager" // Charger le placeholder immédiatement
+						decoding="sync"
+					/>
 				)}
-				src={src}
-				alt={alt}
-				onError={handleError}
-				onLoad={handleLoad}
-				loading={priority ? "eager" : "lazy"}
-				decoding="async"
-				{...props}
-			/>
-		</>
-	);
-};
+
+				{/* Image principale */}
+				<img
+					ref={ref}
+					src={imageSrc}
+					alt={alt}
+					className={clsx(
+						"w-full h-full object-cover transition-opacity duration-300",
+						imageLoaded ? "opacity-100" : "opacity-0",
+						imageClassName,
+					)}
+					loading={loading}
+					decoding={decoding}
+					onLoad={() => setImageLoaded(true)}
+					onError={() => setImageError(true)}
+					{...props}
+				/>
+			</div>
+		);
+	},
+);
