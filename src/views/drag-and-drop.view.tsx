@@ -17,6 +17,11 @@ export function DragAndDropView() {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [stackIndexes, setStackIndexes] = useState<Array<number>>([]);
 	const highestZIndexRef = useRef(15);
+	const [windowDimensions, setWindowDimensions] = useState({
+		width: window.innerWidth,
+		height: window.innerHeight,
+	});
+	const [showEasterEgg, setShowEasterEgg] = useState(false);
 
 	const { data } = useQuery({
 		queryKey: ["lab-drag-drop"],
@@ -41,31 +46,55 @@ export function DragAndDropView() {
 		);
 	}, [data]);
 
+	const calculateSpiralPositions = useCallback(() => {
+		const { width, height } = windowDimensions;
+
+		// Calculate available space (accounting for header and footer)
+		const headerHeight = 42; // var(--header-height)
+		const footerHeight = 112; // h-28 from LabFooterOverlay (28 * 4 = 112px)
+		const padding = 50; // Extra padding for safety
+
+		const availableHeight = height - headerHeight - footerHeight - padding * 2;
+		const centerX = width / 2;
+		const centerY = headerHeight + padding + availableHeight / 2;
+
+		// Detect screen size
+		const isMobile = width < 640;
+		const isTablet = width < 1024;
+
+		// Adjust spiral parameters for available space
+		const maxRadius = Math.min(
+			(width - 200) / 2, // Leave margin on sides
+			availableHeight / 2, // Don't exceed available height
+		);
+
+		// Spiral parameters based on screen size and available space
+		const radiusIncrement = isMobile
+			? Math.min(25, maxRadius / 8)
+			: isTablet
+				? Math.min(35, maxRadius / 6)
+				: Math.min(45, maxRadius / 5);
+		const angleIncrement = isMobile ? 0.8 : isTablet ? 0.7 : 0.6;
+		const startRadius = isMobile ? 10 : isTablet ? 20 : 30;
+
+		return allImages.slice(0, 15).map((_, index) => {
+			// Calculate spiral position
+			const angle = index * angleIncrement;
+			const radius = Math.min(startRadius + index * radiusIncrement, maxRadius);
+
+			// Convert polar coordinates to cartesian
+			const x = centerX + radius * Math.cos(angle);
+			const y = centerY + radius * Math.sin(angle);
+
+			return { x, y };
+		});
+	}, [allImages, windowDimensions]);
+
 	useEffect(() => {
 		if (!allImages.length) return;
 
-		// Calculate center position based on window dimensions
-		const centerX = window.innerWidth / 2;
-		const centerY = window.innerHeight / 2;
-
-		// Create staggered initial positions in a cascade formation
-		const initialPositions = allImages.slice(0, 15).map((_, index) => {
-			// Create three columns of posters with slight variations
-			const column = index % 3;
-			const row = Math.floor(index / 3);
-
-			// Base position for each column
-			let baseX = centerX;
-			if (column === 0) baseX -= 400;
-			if (column === 2) baseX += 400;
-
-			// Stagger the positions with increasing offset based on index
-			return {
-				x: baseX + (Math.random() * 100 - 50),
-				y: centerY - 200 + row * 100 + (Math.random() * 60 - 30),
-			};
-		});
-		setPosterPositions(initialPositions);
+		const positions = calculateSpiralPositions();
+		setPosterPositions(positions);
 
 		// Set initial stacking order with incrementing z-index values
 		const initialStackIndexes = allImages
@@ -73,7 +102,20 @@ export function DragAndDropView() {
 			.map((_, index) => index + 1);
 		highestZIndexRef.current = initialStackIndexes.length;
 		setStackIndexes(initialStackIndexes);
-	}, [allImages]);
+	}, [allImages, calculateSpiralPositions]);
+
+	// Handle window resize
+	useEffect(() => {
+		const handleResize = () => {
+			setWindowDimensions({
+				width: window.innerWidth,
+				height: window.innerHeight,
+			});
+		};
+
+		window.addEventListener("resize", handleResize);
+		return () => window.removeEventListener("resize", handleResize);
+	}, []);
 
 	const getEventCoordinates = useCallback((e: MouseEvent | TouchEvent) => {
 		if ("touches" in e) {
@@ -206,8 +248,81 @@ export function DragAndDropView() {
 		};
 	}, [draggedIndex, handleMouseMove, handleTouchMove, handleEnd]);
 
+	// Check if all images are stacked (easter egg detection)
+	const checkForEasterEgg = useCallback(() => {
+		if (posterPositions.length < 2) return;
+
+		// Define stacking threshold based on screen size and image dimensions
+		const isMobile = windowDimensions.width < 640;
+		const isTablet = windowDimensions.width < 1024;
+
+		// More generous thresholds based on actual image sizes
+		// Mobile: w-28 (112px) -> threshold 150px
+		// Tablet: w-48 (192px) -> threshold 250px
+		// Desktop: w-64 (256px) -> threshold 350px
+		// Large: w-80 (320px) -> threshold 450px
+		let stackingThreshold: number;
+		if (isMobile) {
+			stackingThreshold = 150;
+		} else if (isTablet) {
+			stackingThreshold = 250;
+		} else if (windowDimensions.width < 1280) {
+			stackingThreshold = 350; // Desktop md:w-64
+		} else {
+			stackingThreshold = 450; // Large lg:w-80
+		}
+
+		// Check if all images are within the threshold distance from each other
+		const isStacked = posterPositions.every((pos1, index1) => {
+			return posterPositions.every((pos2, index2) => {
+				if (index1 === index2) return true;
+				const distance = Math.sqrt(
+					(pos1.x - pos2.x) ** 2 + (pos1.y - pos2.y) ** 2,
+				);
+				return distance <= stackingThreshold;
+			});
+		});
+
+		// Debug log for testing
+		if (process.env.NODE_ENV === "development") {
+			console.log("Easter egg check:", {
+				threshold: stackingThreshold,
+				isStacked,
+				screenWidth: windowDimensions.width,
+				positionsCount: posterPositions.length,
+			});
+		}
+
+		setShowEasterEgg(isStacked);
+	}, [posterPositions, windowDimensions.width]);
+
+	// Check for easter egg whenever positions change
+	useEffect(() => {
+		// Only check when not currently dragging to avoid flickering
+		if (draggedIndex === null) {
+			checkForEasterEgg();
+		}
+	}, [posterPositions, draggedIndex, checkForEasterEgg]);
+
 	return (
 		<div className="fixed inset-0 overflow-hidden">
+			{showEasterEgg && (
+				<motion.div
+					initial={{ opacity: 0, scale: 0.5 }}
+					animate={{ opacity: 1, scale: 1 }}
+					exit={{ opacity: 0, scale: 0.5 }}
+					transition={{ duration: 0.8, ease: "easeOut" }}
+					className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center"
+				>
+					<div
+						className="select-none text-[80vw] md:text-[70vw] leading-none"
+						style={{ fontFamily: "var(--font-departure)" }}
+					>
+						=)
+					</div>
+				</motion.div>
+			)}
+
 			<div ref={containerRef} className="absolute inset-0 overflow-hidden">
 				{allImages.slice(0, 15).map((item, index) => {
 					const position = posterPositions[index] || { x: 0, y: 0 };
@@ -229,13 +344,13 @@ export function DragAndDropView() {
 								"absolute",
 								isDragged ? "transition-none" : "transition-all duration-200",
 								"cursor-move touch-none select-none",
-								"w-40 sm:w-64 md:w-80 lg:w-96",
+								"w-28 sm:w-48 md:w-64 lg:w-80",
 							)}
 							style={{
 								top: position.y,
 								left: position.x,
 								transform: "translate(-50%, -50%)",
-								zIndex,
+								zIndex: zIndex + 10, // Ensure images are above easter egg
 							}}
 							onMouseDown={(e) => handlePosterMouseDown(e, index)}
 							onTouchStart={(e) => handlePosterTouchStart(e, index)}

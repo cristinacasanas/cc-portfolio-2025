@@ -3,9 +3,108 @@ import { getLab } from "@/lib/queries/lab";
 import { client } from "@/lib/sanity";
 import { useQuery } from "@tanstack/react-query";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Lab } from "studio/sanity.types";
+
+// Throttle helper function with proper typing
+const throttle = <T extends (...args: unknown[]) => void>(
+	func: T,
+	limit: number,
+): T => {
+	let inThrottle = false;
+	return ((...args: Parameters<T>) => {
+		if (!inThrottle) {
+			func.apply(null, args);
+			inThrottle = true;
+			setTimeout(() => {
+				inThrottle = false;
+			}, limit);
+		}
+	}) as T;
+};
+
+// Debounce helper function with proper typing
+const debounce = <T extends (...args: unknown[]) => void>(
+	func: T,
+	delay: number,
+): T => {
+	let timeoutId: ReturnType<typeof setTimeout>;
+	return ((...args: Parameters<T>) => {
+		clearTimeout(timeoutId);
+		timeoutId = setTimeout(() => func.apply(null, args), delay);
+	}) as T;
+};
+
+// Memoized Image Cell Component
+const ImageCell = memo<{
+	row: number;
+	col: number;
+	imageUrl: string;
+	cellSize: number;
+	cellGap: number;
+	position: { x: number; y: number };
+	zoom: number;
+	imageSize?: { width: number; height: number };
+}>(({ row, col, imageUrl, cellSize, cellGap, position, zoom, imageSize }) => {
+	const totalCellSize = cellSize + cellGap;
+	const left = col * totalCellSize;
+	const top = row * totalCellSize;
+
+	if (!imageSize) {
+		return (
+			<div
+				className="absolute"
+				style={{
+					left: `${position.x + left}px`,
+					top: `${position.y + top}px`,
+					width: `${cellSize}px`,
+					height: `${cellSize}px`,
+				}}
+			/>
+		);
+	}
+
+	const MAX_IMAGE_WIDTH = 300;
+	let displayWidth = imageSize.width;
+	let displayHeight = imageSize.height;
+
+	if (displayWidth > MAX_IMAGE_WIDTH) {
+		const ratio = MAX_IMAGE_WIDTH / displayWidth;
+		displayWidth = MAX_IMAGE_WIDTH;
+		displayHeight = imageSize.height * ratio;
+	}
+
+	const maxHeight = cellSize * 0.9;
+	if (displayHeight > maxHeight) {
+		const ratio = maxHeight / displayHeight;
+		displayHeight = maxHeight;
+		displayWidth = displayWidth * ratio;
+	}
+
+	displayWidth *= zoom;
+	displayHeight *= zoom;
+
+	return (
+		<div
+			className="absolute"
+			style={{
+				left: `${position.x + left + (cellSize - displayWidth) / 2}px`,
+				top: `${position.y + top + (cellSize - displayHeight) / 2}px`,
+				width: `${displayWidth}px`,
+				height: `${displayHeight}px`,
+			}}
+		>
+			<img
+				src={imageUrl}
+				alt={`Lab item ${row}-${col}`}
+				className="h-full w-full object-contain"
+				loading="lazy"
+				decoding="async"
+			/>
+		</div>
+	);
+});
 
 export const InfiniteImageGrid = () => {
 	const { data } = useQuery({
@@ -14,13 +113,12 @@ export const InfiniteImageGrid = () => {
 			const data = await client.fetch<Lab[]>(getLab);
 			return data;
 		},
-		staleTime: 20 * 60 * 1000, // 20 minutes - les images du lab changent moins fréquemment
-		gcTime: 4 * 60 * 60 * 1000, // 4 heures
+		staleTime: 20 * 60 * 1000,
+		gcTime: 4 * 60 * 60 * 1000,
 		refetchOnWindowFocus: false,
 		refetchOnMount: false,
 	});
 
-	// Flatten all images from all lab entries
 	const allImages = useMemo(() => {
 		if (!data) return [];
 		return data.flatMap(
@@ -39,32 +137,26 @@ export const InfiniteImageGrid = () => {
 	>([]);
 	const [isDragging, setIsDragging] = useState(false);
 	const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-	const [momentum, setMomentum] = useState({ x: 0, y: 0 });
-	const [isLoading, setIsLoading] = useState(false);
-	console.log(isLoading);
 	const [imagesSizes, setImagesSizes] = useState<
 		Record<string, { width: number; height: number }>
 	>({});
-
-	// Touch handling states
 	const [lastTouchDistance, setLastTouchDistance] = useState<number>(0);
 
 	const momentumRef = useRef({ x: 0, y: 0 });
 	const lastFrameTime = useRef(performance.now());
 	const animationFrameId = useRef<number | null>(null);
+	const imageLoadingCache = useRef<Set<string>>(new Set());
 
-	// Configuration optimisée
-	const CELL_SIZE = 350; // Taille de base des cellules
-	const GRID_LIMIT = 500; // Limite de la grille dans chaque direction
-	const MOMENTUM_DECAY = 0.95;
-	const MAX_IMAGE_WIDTH = 300; // Largeur maximale pour les images elles-mêmes
-	const CELL_GAP = 30; // Espace entre les cellules
+	// Optimized configuration
+	const CELL_SIZE = 350;
+	const GRID_LIMIT = 200; // Reduced from 500
+	const MOMENTUM_DECAY = 0.92; // Slightly faster decay
+	const CELL_GAP = 30;
+	const ANIMATION_THROTTLE = 16; // ~60fps
 
-	// Calculer la taille réelle des cellules en fonction du zoom
 	const actualCellSize = useMemo(() => CELL_SIZE * zoom, [zoom]);
 	const actualCellGap = useMemo(() => CELL_GAP * zoom, [zoom]);
 
-	// Fonction pour obtenir l'URL de l'image en fonction de la position
 	const getImageUrl = useCallback(
 		(row: number, col: number): string => {
 			if (!allImages.length) return "";
@@ -74,11 +166,14 @@ export const InfiniteImageGrid = () => {
 		[allImages],
 	);
 
-	// Précharger les tailles d'images
+	// Optimized image preloading with cache
 	const preloadImageSize = useCallback(
 		(url: string, cellKey: string) => {
-			// Vérifier si on a déjà les dimensions
-			if (imagesSizes[cellKey]) return;
+			if (imagesSizes[cellKey] || imageLoadingCache.current.has(cellKey)) {
+				return;
+			}
+
+			imageLoadingCache.current.add(cellKey);
 
 			const img = new Image();
 			img.onload = () => {
@@ -89,14 +184,16 @@ export const InfiniteImageGrid = () => {
 						height: img.naturalHeight,
 					},
 				}));
-				setIsLoading(false);
+				imageLoadingCache.current.delete(cellKey);
+			};
+			img.onerror = () => {
+				imageLoadingCache.current.delete(cellKey);
 			};
 			img.src = url;
 		},
 		[imagesSizes],
 	);
 
-	// Helper functions for native touch events
 	const getTouchDistanceNative = useCallback((touches: TouchList) => {
 		if (touches.length < 2) return 0;
 		const dx = touches[0].clientX - touches[1].clientX;
@@ -117,47 +214,51 @@ export const InfiniteImageGrid = () => {
 		return { x: 0, y: 0 };
 	}, []);
 
-	// Calculer les cellules visibles en fonction de la position et de la taille de la fenêtre
-	const updateVisibleCells = useCallback(() => {
-		if (!gridRef.current) return;
+	// Throttled visible cells calculation
+	const updateVisibleCells = useCallback(
+		throttle(() => {
+			if (!gridRef.current) return;
 
-		const rect = gridRef.current.getBoundingClientRect();
-		const viewportWidth = rect.width;
-		const viewportHeight = rect.height;
+			const rect = gridRef.current.getBoundingClientRect();
+			const viewportWidth = rect.width;
+			const viewportHeight = rect.height;
 
-		// Taille totale de chaque cellule avec l'espace
-		const totalCellSize = actualCellSize + actualCellGap;
+			const totalCellSize = actualCellSize + actualCellGap;
 
-		// Calculer les indices des cellules visibles
-		const startCol = Math.floor(-position.x / totalCellSize) - 3;
-		const startRow = Math.floor(-position.y / totalCellSize) - 3;
-		const endCol = startCol + Math.ceil(viewportWidth / totalCellSize) + 6;
-		const endRow = startRow + Math.ceil(viewportHeight / totalCellSize) + 6;
+			// Reduced buffer for better performance
+			const buffer = 2; // Reduced from 3
+			const startCol = Math.floor(-position.x / totalCellSize) - buffer;
+			const startRow = Math.floor(-position.y / totalCellSize) - buffer;
+			const endCol =
+				startCol + Math.ceil(viewportWidth / totalCellSize) + buffer * 2;
+			const endRow =
+				startRow + Math.ceil(viewportHeight / totalCellSize) + buffer * 2;
 
-		// Générer la liste des cellules visibles
-		const cells: Array<{ row: number; col: number }> = [];
-		for (let row = startRow; row <= endRow; row++) {
-			for (let col = startCol; col <= endCol; col++) {
-				// Limiter la grille pour éviter un nombre infini de cellules
-				if (
-					row >= -GRID_LIMIT &&
-					row <= GRID_LIMIT &&
-					col >= -GRID_LIMIT &&
-					col <= GRID_LIMIT
-				) {
-					cells.push({ row, col });
+			const cells: Array<{ row: number; col: number }> = [];
+			for (let row = startRow; row <= endRow; row++) {
+				for (let col = startCol; col <= endCol; col++) {
+					if (
+						row >= -GRID_LIMIT &&
+						row <= GRID_LIMIT &&
+						col >= -GRID_LIMIT &&
+						col <= GRID_LIMIT
+					) {
+						cells.push({ row, col });
+					}
 				}
 			}
-		}
 
-		setVisibleCells(cells);
-	}, [position, actualCellSize, actualCellGap]);
+			setVisibleCells(cells);
+		}, 16), // 60fps throttle
+		[position, actualCellSize, actualCellGap],
+	);
 
-	// Optimisation: Effet d'animation avec inertie
+	// Optimized momentum animation
 	const applyMomentum = useCallback(() => {
+		const threshold = 0.5; // Increased threshold
 		if (
-			Math.abs(momentumRef.current.x) < 0.1 &&
-			Math.abs(momentumRef.current.y) < 0.1
+			Math.abs(momentumRef.current.x) < threshold &&
+			Math.abs(momentumRef.current.y) < threshold
 		) {
 			if (animationFrameId.current) {
 				cancelAnimationFrame(animationFrameId.current);
@@ -167,72 +268,61 @@ export const InfiniteImageGrid = () => {
 		}
 
 		const now = performance.now();
-		const deltaTime = (now - lastFrameTime.current) / 16; // Normaliser à ~60fps
+		const deltaTime = Math.min(
+			(now - lastFrameTime.current) / ANIMATION_THROTTLE,
+			2,
+		);
 		lastFrameTime.current = now;
 
-		// Appliquer le momentum avec décroissance
 		setPosition((prev) => ({
 			x: prev.x + momentumRef.current.x * deltaTime,
 			y: prev.y + momentumRef.current.y * deltaTime,
 		}));
 
-		// Réduire le momentum progressivement
 		momentumRef.current = {
 			x: momentumRef.current.x * MOMENTUM_DECAY ** deltaTime,
 			y: momentumRef.current.y * MOMENTUM_DECAY ** deltaTime,
 		};
 
-		setMomentum(momentumRef.current);
-
 		animationFrameId.current = requestAnimationFrame(applyMomentum);
 	}, []);
 
-	// Add global mouse and touch event listeners
+	// Optimized event handlers
 	useEffect(() => {
 		const gridElement = gridRef.current;
 		if (!gridElement) return;
 
-		// Wheel event handler for direct DOM manipulation
-		const handleWheelDirect = (e: WheelEvent) => {
+		const handleWheelDirect = throttle((e: WheelEvent) => {
 			e.preventDefault();
 
-			// Zoom avec Ctrl+Molette
 			if (e.ctrlKey) {
 				const zoomDelta = -e.deltaY * 0.001;
 				setZoom((prev) => Math.max(0.5, Math.min(3, prev + zoomDelta)));
 				return;
 			}
 
-			// Correction du défilement horizontal
 			const deltaX = e.shiftKey ? e.deltaY : e.deltaX;
 			const deltaY = e.shiftKey ? 0 : e.deltaY;
 
-			// Mettre à jour la position en fonction du mouvement de la molette
 			setPosition((prev) => ({
 				x: prev.x - deltaX * (1 / zoom) * 0.5,
 				y: prev.y - deltaY * (1 / zoom) * 0.5,
 			}));
 
-			// Ajouter un peu de momentum pour un défilement plus fluide
 			momentumRef.current = {
-				x: momentumRef.current.x - deltaX * 0.02 * (1 / zoom),
-				y: momentumRef.current.y - deltaY * 0.02 * (1 / zoom),
+				x: momentumRef.current.x - deltaX * 0.01 * (1 / zoom),
+				y: momentumRef.current.y - deltaY * 0.01 * (1 / zoom),
 			};
-			setMomentum(momentumRef.current);
 
-			// Démarrer l'animation de momentum si elle n'est pas déjà en cours
 			if (!animationFrameId.current) {
 				lastFrameTime.current = performance.now();
 				animationFrameId.current = requestAnimationFrame(applyMomentum);
 			}
-		};
+		}, 8); // Increased throttling
 
-		// Touch event handlers for direct DOM manipulation
 		const handleTouchStartDirect = (e: TouchEvent) => {
 			e.preventDefault();
-			e.stopPropagation();
 
-			// Arrêter l'animation de momentum
 			if (animationFrameId.current) {
 				cancelAnimationFrame(animationFrameId.current);
 				animationFrameId.current = null;
@@ -241,42 +331,34 @@ export const InfiniteImageGrid = () => {
 			const touches = e.touches;
 
 			if (touches.length === 1) {
-				// Single touch - start dragging
 				setIsDragging(true);
 				setDragStart({ x: touches[0].clientX, y: touches[0].clientY });
 			} else if (touches.length === 2) {
-				// Multi-touch - prepare for pinch zoom
 				setIsDragging(false);
 				const distance = getTouchDistanceNative(touches);
 				setLastTouchDistance(distance);
 			}
 
-			// Réinitialiser le momentum
 			momentumRef.current = { x: 0, y: 0 };
-			setMomentum({ x: 0, y: 0 });
 		};
 
-		const handleTouchMoveDirect = (e: TouchEvent) => {
+		const handleTouchMoveDirect = throttle((e: TouchEvent) => {
 			e.preventDefault();
-			e.stopPropagation();
 
 			const touches = e.touches;
 
 			if (touches.length === 1 && isDragging) {
-				// Single touch drag
 				const dx = touches[0].clientX - dragStart.x;
 				const dy = touches[0].clientY - dragStart.y;
 
-				// Calculer le momentum basé sur le mouvement
 				const now = performance.now();
 				const deltaTime = now - lastFrameTime.current;
 
 				if (deltaTime > 0) {
 					momentumRef.current = {
-						x: (dx / deltaTime) * 8,
-						y: (dy / deltaTime) * 8,
+						x: (dx / deltaTime) * 6, // Reduced momentum factor
+						y: (dy / deltaTime) * 6,
 					};
-					setMomentum(momentumRef.current);
 					lastFrameTime.current = now;
 				}
 
@@ -287,7 +369,6 @@ export const InfiniteImageGrid = () => {
 
 				setDragStart({ x: touches[0].clientX, y: touches[0].clientY });
 			} else if (touches.length === 2) {
-				// Pinch zoom
 				const distance = getTouchDistanceNative(touches);
 				const center = getTouchCenterNative(touches);
 
@@ -295,7 +376,6 @@ export const InfiniteImageGrid = () => {
 					const scale = distance / lastTouchDistance;
 					const newZoom = Math.max(0.5, Math.min(3, zoom * scale));
 
-					// Zoom towards the pinch center
 					const zoomDelta = newZoom - zoom;
 					const deltaX =
 						(center.x - window.innerWidth / 2) * (zoomDelta / zoom);
@@ -312,18 +392,16 @@ export const InfiniteImageGrid = () => {
 
 				setLastTouchDistance(distance);
 			}
-		};
+		}, 16);
 
 		const handleTouchEndDirect = (e: TouchEvent) => {
 			e.preventDefault();
-			e.stopPropagation();
-
 			setIsDragging(false);
 			setLastTouchDistance(0);
 
-			// Démarrer l'animation de momentum
 			if (
-				(Math.abs(momentum.x) > 0.1 || Math.abs(momentum.y) > 0.1) &&
+				(Math.abs(momentumRef.current.x) > 0.5 ||
+					Math.abs(momentumRef.current.y) > 0.5) &&
 				!animationFrameId.current
 			) {
 				lastFrameTime.current = performance.now();
@@ -331,7 +409,6 @@ export const InfiniteImageGrid = () => {
 			}
 		};
 
-		// Add all event listeners with passive: false and capture: true
 		gridElement.addEventListener("wheel", handleWheelDirect, {
 			passive: false,
 			capture: true,
@@ -350,18 +427,10 @@ export const InfiniteImageGrid = () => {
 		});
 
 		return () => {
-			gridElement.removeEventListener("wheel", handleWheelDirect, {
-				capture: true,
-			});
-			gridElement.removeEventListener("touchstart", handleTouchStartDirect, {
-				capture: true,
-			});
-			gridElement.removeEventListener("touchmove", handleTouchMoveDirect, {
-				capture: true,
-			});
-			gridElement.removeEventListener("touchend", handleTouchEndDirect, {
-				capture: true,
-			});
+			gridElement.removeEventListener("wheel", handleWheelDirect);
+			gridElement.removeEventListener("touchstart", handleTouchStartDirect);
+			gridElement.removeEventListener("touchmove", handleTouchMoveDirect);
+			gridElement.removeEventListener("touchend", handleTouchEndDirect);
 		};
 	}, [
 		isDragging,
@@ -370,17 +439,21 @@ export const InfiniteImageGrid = () => {
 		getTouchCenterNative,
 		lastTouchDistance,
 		zoom,
-		momentum,
 		applyMomentum,
 	]);
 
-	// Mettre à jour les cellules visibles lorsque la position ou le zoom change
-	useEffect(() => {
-		updateVisibleCells();
+	// Debounced visible cells update
+	const debouncedUpdateVisibleCells = useMemo(
+		() => debounce(updateVisibleCells, 10),
+		[updateVisibleCells],
+	);
 
-		const handleResize = () => {
+	useEffect(() => {
+		debouncedUpdateVisibleCells();
+
+		const handleResize = debounce(() => {
 			updateVisibleCells();
-		};
+		}, 100);
 
 		window.addEventListener("resize", handleResize);
 		return () => {
@@ -389,11 +462,10 @@ export const InfiniteImageGrid = () => {
 				cancelAnimationFrame(animationFrameId.current);
 			}
 		};
-	}, [updateVisibleCells]);
+	}, [updateVisibleCells, debouncedUpdateVisibleCells]);
 
-	// Optimisation: Navigation au clavier avec useCallback
 	const handleKeyDown = useCallback(
-		(e: KeyboardEvent) => {
+		throttle((e: KeyboardEvent) => {
 			const moveAmount = 100 * (1 / zoom);
 
 			switch (e.key) {
@@ -416,7 +488,7 @@ export const InfiniteImageGrid = () => {
 					setZoom((prev) => Math.max(prev - 0.1, 0.5));
 					break;
 			}
-		},
+		}, 50),
 		[zoom],
 	);
 
@@ -425,9 +497,7 @@ export const InfiniteImageGrid = () => {
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [handleKeyDown]);
 
-	// Optimisation: Gestion du glisser-déposer avec useCallback
 	const handleMouseDown = useCallback((e: React.MouseEvent) => {
-		// Arrêter l'animation de momentum
 		if (animationFrameId.current) {
 			cancelAnimationFrame(animationFrameId.current);
 			animationFrameId.current = null;
@@ -435,29 +505,24 @@ export const InfiniteImageGrid = () => {
 
 		setIsDragging(true);
 		setDragStart({ x: e.clientX, y: e.clientY });
-
-		// Réinitialiser le momentum
 		momentumRef.current = { x: 0, y: 0 };
-		setMomentum({ x: 0, y: 0 });
 	}, []);
 
 	const handleMouseMove = useCallback(
-		(e: React.MouseEvent) => {
+		throttle((e: React.MouseEvent) => {
 			if (!isDragging) return;
 
 			const dx = e.clientX - dragStart.x;
 			const dy = e.clientY - dragStart.y;
 
-			// Calculer le momentum basé sur le mouvement
 			const now = performance.now();
 			const deltaTime = now - lastFrameTime.current;
 
 			if (deltaTime > 0) {
 				momentumRef.current = {
-					x: (dx / deltaTime) * 8,
-					y: (dy / deltaTime) * 8,
+					x: (dx / deltaTime) * 6,
+					y: (dy / deltaTime) * 6,
 				};
-				setMomentum(momentumRef.current);
 				lastFrameTime.current = now;
 			}
 
@@ -467,109 +532,49 @@ export const InfiniteImageGrid = () => {
 			}));
 
 			setDragStart({ x: e.clientX, y: e.clientY });
-		},
+		}, 16),
 		[isDragging, dragStart],
 	);
 
 	const handleMouseUp = useCallback(() => {
 		setIsDragging(false);
 
-		// Démarrer l'animation de momentum
 		if (
-			(Math.abs(momentum.x) > 0.1 || Math.abs(momentum.y) > 0.1) &&
+			(Math.abs(momentumRef.current.x) > 0.5 ||
+				Math.abs(momentumRef.current.y) > 0.5) &&
 			!animationFrameId.current
 		) {
 			lastFrameTime.current = performance.now();
 			animationFrameId.current = requestAnimationFrame(applyMomentum);
 		}
-	}, [momentum, applyMomentum]);
+	}, [applyMomentum]);
 
-	// Optimisation: Rendu des cellules avec useMemo
+	// Memoized cells rendering with batch preloading
 	const renderedCells = useMemo(() => {
-		return visibleCells.map(({ row, col }) => {
-			// Taille totale de chaque cellule avec l'espace
-			const totalCellSize = actualCellSize + actualCellGap;
-
-			// Calculer la position pour cette cellule
-			const left = col * totalCellSize;
-			const top = row * totalCellSize;
-
-			// Clé unique pour cette cellule
+		// Batch preload images using for...of
+		for (const { row, col } of visibleCells) {
 			const cellKey = `${row}-${col}`;
-
-			// Obtenir l'URL de l'image
 			const imageUrl = getImageUrl(row, col);
-
-			// Précharger l'image pour obtenir ses dimensions
 			preloadImageSize(imageUrl, cellKey);
+		}
 
-			// Récupérer les dimensions de l'image si disponibles, sinon utiliser valeurs par défaut
+		return visibleCells.map(({ row, col }) => {
+			const cellKey = `${row}-${col}`;
+			const imageUrl = getImageUrl(row, col);
 			const imageSize = imagesSizes[cellKey];
 
-			// Si l'image n'est pas encore chargée, on affiche un placeholder
-			if (!imageSize) {
-				return (
-					<div
-						key={cellKey}
-						className="absolute flex items-center justify-center"
-						style={{
-							left: `${position.x + left}px`,
-							top: `${position.y + top}px`,
-							width: `${actualCellSize}px`,
-							height: `${actualCellSize}px`,
-						}}
-					>
-						<div className="text-gray-300 text-sm" />
-					</div>
-				);
-			}
-
-			// Calculer les dimensions d'affichage en respectant le ratio d'aspect
-			let displayWidth = imageSize.width;
-			let displayHeight = imageSize.height;
-
-			// Limiter la taille maximale tout en préservant le ratio
-			if (displayWidth > MAX_IMAGE_WIDTH) {
-				const ratio = MAX_IMAGE_WIDTH / displayWidth;
-				displayWidth = MAX_IMAGE_WIDTH;
-				displayHeight = imageSize.height * ratio;
-			}
-
-			// S'assurer que la hauteur ne dépasse pas non plus la taille de la cellule
-			const maxHeight = actualCellSize * 0.9;
-			if (displayHeight > maxHeight) {
-				const ratio = maxHeight / displayHeight;
-				displayHeight = maxHeight;
-				displayWidth = displayWidth * ratio;
-			}
-
-			// Appliquer le zoom
-			displayWidth = displayWidth * zoom;
-			displayHeight = displayHeight * zoom;
-
 			return (
-				<div
+				<ImageCell
 					key={cellKey}
-					className="absolute"
-					style={{
-						left: `${position.x + left + (actualCellSize - displayWidth) / 2}px`,
-						top: `${position.y + top + (actualCellSize - displayHeight) / 2}px`,
-						width: `${displayWidth}px`,
-						height: `${displayHeight}px`,
-					}}
-				>
-					<img
-						src={imageUrl}
-						alt="okay"
-						className="h-full w-full object-contain"
-						loading="lazy"
-						onError={(e) => {
-							// Fallback en cas d'erreur de chargement
-							const target = e.target as HTMLImageElement;
-							target.src = `/placeholder.svg?height=${displayHeight}&width=${displayWidth}&text=${row},${col}`;
-						}}
-					/>
-				</div>
+					row={row}
+					col={col}
+					imageUrl={imageUrl}
+					cellSize={actualCellSize}
+					cellGap={actualCellGap}
+					position={position}
+					zoom={zoom}
+					imageSize={imageSize}
+				/>
 			);
 		});
 	}, [
@@ -583,7 +588,7 @@ export const InfiniteImageGrid = () => {
 		preloadImageSize,
 	]);
 
-	// Centrer la grille au premier rendu
+	// Initialize position
 	useEffect(() => {
 		if (gridRef.current) {
 			const rect = gridRef.current.getBoundingClientRect();
@@ -595,7 +600,7 @@ export const InfiniteImageGrid = () => {
 	}, []);
 
 	return (
-		<div className="fixed inset-0 overflow-hidden bg-gray-50 pt-12">
+		<div className="fixed inset-0 overflow-hidden pt-12">
 			<div
 				className="absolute inset-0 overflow-hidden"
 				ref={gridRef}
@@ -609,9 +614,12 @@ export const InfiniteImageGrid = () => {
 					WebkitUserSelect: "none",
 					WebkitTouchCallout: "none",
 					WebkitTapHighlightColor: "transparent",
+					willChange: "transform",
 				}}
 			>
-				<div className="absolute inset-0">{renderedCells}</div>
+				<div className="absolute inset-0" style={{ willChange: "transform" }}>
+					{renderedCells}
+				</div>
 			</div>
 		</div>
 	);
