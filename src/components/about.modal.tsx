@@ -11,7 +11,6 @@ import { useTranslation } from "react-i18next";
 // Constants
 const CACHE_DURATION_ONE_HOUR = 60 * 60 * 1000;
 const CACHE_DURATION_EIGHT_HOURS = 8 * 60 * 60 * 1000;
-const PORTRAIT_WIDTH = 100;
 
 // Types
 interface SanityImageAsset {
@@ -143,7 +142,7 @@ const useNetworkData = () => {
 const PortraitSection = ({ aboutData }: { aboutData: AboutData[] }) => (
 	<div className="flex w-full justify-end">
 		<Image
-			className={`object-cover p-0.5 w-[${PORTRAIT_WIDTH}px]`}
+			className="object-cover p-0.5 w-[80px] md:w-[100px]"
 			src={
 				aboutData?.[0]?.image
 					? urlForOriginal(aboutData[0].image)
