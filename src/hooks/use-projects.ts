@@ -5,7 +5,7 @@ import {
 	getProjectsByCategory,
 } from "@/lib/queries";
 import { client } from "@/lib/sanity";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Categories, Projects } from "studio/sanity.types";
 
 type ProjectWithCategories = Projects & {
@@ -56,4 +56,28 @@ export function useProjects(filters?: {
 		},
 		...CACHE_CONFIG.DYNAMIC,
 	});
+}
+
+export function useProjectsPrefetch() {
+	const queryClient = useQueryClient();
+
+	const prefetchProject = (projectId: string) => {
+		queryClient.prefetchQuery({
+			queryKey: CACHE_KEYS.PROJECTS({ project: projectId }),
+			queryFn: () => client.fetch(getProjectById(projectId)),
+			staleTime: 12 * 60 * 60 * 1000,
+			gcTime: 7 * 24 * 60 * 60 * 1000,
+		});
+	};
+
+	const prefetchCategory = (category: string) => {
+		queryClient.prefetchQuery({
+			queryKey: CACHE_KEYS.PROJECTS({ category }),
+			queryFn: () => client.fetch(getProjectsByCategory(category)),
+			staleTime: 12 * 60 * 60 * 1000,
+			gcTime: 7 * 24 * 60 * 60 * 1000,
+		});
+	};
+
+	return { prefetchProject, prefetchCategory };
 }

@@ -10,7 +10,8 @@ export interface ImageProps
 	alt: string;
 	ratio?: AspectRatio;
 	imageClassName?: string;
-	usePlaceholder?: boolean; // Nouvelle prop pour activer les placeholders
+	usePlaceholder?: boolean;
+	priority?: boolean; // New prop for priority loading
 }
 
 export type AspectRatio =
@@ -105,8 +106,9 @@ export const Image = forwardRef<HTMLImageElement, ImageProps>(
 			src,
 			alt,
 			usePlaceholder = true,
-			loading = "lazy", // Lazy loading par défaut
-			decoding = "async", // Décodage asynchrone par défaut
+			priority = false,
+			loading = priority ? "eager" : "lazy", // Set loading based on priority
+			decoding = priority ? "sync" : "async", // Set decoding based on priority
 			...props
 		},
 		ref: ForwardedRef<HTMLImageElement>,
@@ -128,7 +130,8 @@ export const Image = forwardRef<HTMLImageElement, ImageProps>(
 				{usePlaceholder && placeholderSrc && !imageLoaded && !imageError && (
 					<img
 						src={placeholderSrc}
-						alt="Loading placeholder"
+						alt=""
+						aria-hidden="true"
 						className={clsx(
 							"absolute inset-0 size-full object-cover transition-opacity duration-300",
 							imageClassName,

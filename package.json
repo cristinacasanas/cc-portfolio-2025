@@ -70,8 +70,10 @@
     "jsdom": "^26.0.0",
     "lucide-react": "^0.516.0",
     "sanity": "^3.86.1",
+    "terser": "^5.43.1",
     "typescript": "^5.7.2",
     "vite": "^6.1.0",
+    "vite-plugin-compression": "^0.5.1",
     "vitest": "^3.0.5",
     "web-vitals": "^4.2.4"
   }

@@ -25,8 +25,12 @@ function App() {
 		<div className="col-span-4 flex h-[100dvh] flex-col gap-10 overflow-y-auto bg-background-primary pb-[calc(85px+24px)] md:h-[calc(100dvh-var(--header-height))] md:gap-20">
 			{data &&
 				data.length > 0 &&
-				data.map((project) => (
-					<ProjectCard key={project._id} project={project} />
+				data.map((project, index) => (
+					<ProjectCard
+						key={project._id}
+						project={project}
+						isFirst={index === 0}
+					/>
 				))}
 		</div>
 	);

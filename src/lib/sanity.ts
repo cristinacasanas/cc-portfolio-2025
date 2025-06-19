@@ -24,16 +24,18 @@ export function urlForThumbnail(source: { asset?: { _ref: string } } | string) {
 		.width(400)
 		.height(300)
 		.fit("crop")
-		.quality(85)
+		.quality(80)
 		.format("webp")
-		.auto("format"); // Laisse Sanity choisir le meilleur format
+		.auto("format"); // Let Sanity choose the best format (WebP/AVIF)
 }
 
 export function urlForGallery(source: { asset?: { _ref: string } } | string) {
 	return builder
 		.image(source)
 		.width(1200)
-		.quality(90)
+		.height(675) // 16:9 aspect ratio
+		.fit("crop")
+		.quality(85)
 		.format("webp")
 		.auto("format");
 }
@@ -42,7 +44,9 @@ export function urlForMobile(source: { asset?: { _ref: string } } | string) {
 	return builder
 		.image(source)
 		.width(600)
-		.quality(85)
+		.height(337) // 16:9 aspect ratio
+		.fit("crop")
+		.quality(80)
 		.format("webp")
 		.auto("format");
 }
@@ -52,29 +56,31 @@ export function urlForLab(
 	size: "small" | "medium" | "large" = "medium",
 ) {
 	const sizes = {
-		small: 300,
-		medium: 500,
-		large: 800,
+		small: { width: 300, height: 300 },
+		medium: { width: 500, height: 500 },
+		large: { width: 800, height: 800 },
 	};
+
+	const { width, height } = sizes[size];
 
 	return builder
 		.image(source)
-		.width(sizes[size])
-		.quality(85)
+		.width(width)
+		.height(height)
+		.fit("crop")
+		.quality(80)
 		.format("webp")
 		.auto("format");
 }
 
-// Nouvelle fonction pour les thumbnails ultra-optimisés
-export function urlForThumbnailMini(
-	source: { asset?: { _ref: string } } | string,
-) {
+// High quality version for important images (like hero/LCP)
+export function urlForHero(source: { asset?: { _ref: string } } | string) {
 	return builder
 		.image(source)
-		.width(200)
-		.height(150)
+		.width(1920)
+		.height(1080)
 		.fit("crop")
-		.quality(75)
+		.quality(90)
 		.format("webp")
 		.auto("format");
 }
@@ -88,13 +94,12 @@ export function urlForPlaceholder(
 		.width(100)
 		.height(75)
 		.fit("crop")
-		.quality(40)
+		.quality(30)
 		.format("webp")
 		.blur(20)
 		.auto("format");
 }
 
-// Fonction pour obtenir l'image originale sans aucune transformation
 export function urlForOriginal(source: { asset?: { _ref: string } } | string) {
-	return builder.image(source).url();
+	return builder.image(source).quality(95).format("webp").auto("format");
 }

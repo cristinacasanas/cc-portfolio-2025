@@ -1,6 +1,4 @@
 import { RouterProvider, createRouter } from "@tanstack/react-router";
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/react";
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 
@@ -13,6 +11,10 @@ import { routeTree } from "./routeTree.gen";
 import "./styles.css";
 import reportWebVitals from "./reportWebVitals.ts";
 
+// Import analytics components normally to avoid React errors
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
+
 // Create a new router instance
 const router = createRouter({
 	routeTree,
@@ -20,7 +22,8 @@ const router = createRouter({
 		...TanstackQuery.getContext(),
 	},
 	defaultPreload: "intent",
-	scrollRestoration: true,
+	// Since we're using React Query, we don't want loader calls to ever be stale
+	// This will ensure that the loader is always called when the route is preloaded or visited
 	defaultPreloadStaleTime: 0,
 });
 
@@ -33,18 +36,18 @@ declare module "@tanstack/react-router" {
 
 // Render the app
 const rootElement = document.getElementById("app");
-if (rootElement && !rootElement.innerHTML) {
-	const root = ReactDOM.createRoot(rootElement);
-	root.render(
-		<StrictMode>
-			<TanstackQuery.Provider>
-				<Analytics />
-				<SpeedInsights />
-				<RouterProvider router={router} />
-			</TanstackQuery.Provider>
-		</StrictMode>,
-	);
-}
+if (!rootElement) throw new Error("Failed to find the root element");
+
+const root = ReactDOM.createRoot(rootElement);
+root.render(
+	<StrictMode>
+		<TanstackQuery.Provider>
+			<RouterProvider router={router} />
+			<Analytics />
+			<SpeedInsights />
+		</TanstackQuery.Provider>
+	</StrictMode>,
+);
 
 // If you want to start measuring performance in your app, pass a function
 // to log results (for example: reportWebVitals(console.log))

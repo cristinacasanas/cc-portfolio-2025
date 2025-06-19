@@ -67,7 +67,8 @@ function LabRouteComponent() {
 							.filter((url): url is string => Boolean(url)) || [],
 				);
 
-				const imagePromises = allImages.slice(0, 20).map((url: string) => {
+				// Preload only the first 5 images for faster initial load
+				const imagePromises = allImages.slice(0, 5).map((url: string) => {
 					return new Promise((resolve, reject) => {
 						const img = new Image();
 						img.onload = resolve;
@@ -84,10 +85,10 @@ function LabRouteComponent() {
 
 		preloadImages();
 
-		// Hide transition after 4 seconds
+		// Hide transition after 3 seconds instead of 4
 		const timer = setTimeout(() => {
 			setShowTransition(false);
-		}, 4000);
+		}, 3000);
 
 		return () => {
 			clearTimeout(timer);
