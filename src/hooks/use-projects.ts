@@ -5,6 +5,7 @@ import {
 	getProjectsByCategory,
 } from "@/lib/queries";
 import { client } from "@/lib/sanity";
+import { detectDevice, getOptimizedConfig } from "@/utils/device";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Categories, Projects } from "studio/sanity.types";
 
@@ -20,41 +21,79 @@ export function useProjects(filters?: {
 	return useQuery({
 		queryKey: CACHE_KEYS.PROJECTS(filters),
 		queryFn: async (): Promise<ProjectWithCategories[]> => {
+			// Use enhanced device detection
+			const deviceInfo = detectDevice();
+			const config = getOptimizedConfig(
+				deviceInfo.isOldDevice,
+				deviceInfo.isMobile,
+			);
+
 			// Projet spécifique
 			if (filters?.project) {
-				return client.fetch<ProjectWithCategories[]>(
-					getProjectById(filters.project),
-				);
+				const projects = await client.fetch(getProjectById(filters.project));
+				return projects || [];
 			}
 
-			// Projets par catégorie
+			// Catégorie spécifique
 			if (filters?.category) {
-				return client.fetch<ProjectWithCategories[]>(
+				const projects = await client.fetch(
 					getProjectsByCategory(filters.category),
 				);
+				return projects || [];
 			}
 
-			// Tous les projets (optimisé pour thumbnails si demandé)
-			if (filters?.thumbnailsOnly) {
-				return client.fetch<ProjectWithCategories[]>(
-					`*[_type == "projects"] | order(orderRank) {
-						_id,
-						title,
-						slug,
-						thumbnail,
-						"expandedCategories": categories[]-> {
-							_id,
-							title,
-							slug
-						}
-					}`,
-				);
+			// Tous les projets avec optimisation mobile
+			let queryString = getAllProjects;
+
+			// More aggressive limitations on mobile
+			if (deviceInfo.isMobile || deviceInfo.isLowEndDevice) {
+				if (filters?.thumbnailsOnly) {
+					queryString += `[0...${config.maxThumbnails}]`;
+				} else {
+					queryString += `[0...${config.maxProjects}]`;
+				}
+			} else if (deviceInfo.isOldDevice) {
+				// Standard old device limitations
+				if (filters?.thumbnailsOnly) {
+					queryString += "[0...20]";
+				} else {
+					queryString += "[0...10]";
+				}
 			}
 
-			// Tous les projets complets
-			return client.fetch<ProjectWithCategories[]>(getAllProjects);
+			const projects = await client.fetch(queryString);
+			return projects || [];
 		},
-		...CACHE_CONFIG.DYNAMIC,
+		...CACHE_CONFIG.STATIC, // Use STATIC config for projects
+	});
+}
+
+export function useProject(projectId?: string) {
+	const queryClient = useQueryClient();
+
+	return useQuery({
+		queryKey: CACHE_KEYS.PROJECTS({ project: projectId }),
+		queryFn: async (): Promise<ProjectWithCategories | null> => {
+			if (!projectId) return null;
+
+			// Try to get from cache first
+			const cachedProjects = queryClient.getQueryData<ProjectWithCategories[]>(
+				CACHE_KEYS.PROJECTS(),
+			);
+
+			if (cachedProjects) {
+				const cachedProject = cachedProjects.find(
+					(p) => p.slug?.current === projectId || p._id === projectId,
+				);
+				if (cachedProject) return cachedProject;
+			}
+
+			// Fetch from API
+			const projects = await client.fetch(getProjectById(projectId));
+			return projects?.[0] || null;
+		},
+		enabled: Boolean(projectId),
+		...CACHE_CONFIG.DYNAMIC, // Use DYNAMIC config for individual project
 	});
 }
 
