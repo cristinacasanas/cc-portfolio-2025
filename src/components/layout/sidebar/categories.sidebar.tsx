@@ -30,7 +30,7 @@ export const CategoriesSidebar = () => {
 	});
 
 	return (
-		<Sidebar position="left" className="pb-6">
+		<Sidebar position="left" className="px-0 lg:px-4">
 			<div className="flex flex-1 flex-col items-start justify-between pt-14">
 				<div className="flex flex-col items-start justify-start gap-20">
 					<div className="flex flex-col items-start justify-start gap-4">

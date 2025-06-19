@@ -10,14 +10,32 @@ export default defineType({
     defineField({
       name: "description",
       title: "Description",
-      type: "array",
-      of: [{ type: "block" }],
+      type: "object",
+      fields: [
+        {
+          name: "fr",
+          title: "Français",
+          type: "array",
+          of: [{ type: "block" }],
+          validation: (Rule: any) => Rule.required(),
+        },
+        {
+          name: "en",
+          title: "English",
+          type: "array",
+          of: [{ type: "block" }],
+        },
+      ],
+
       validation: (Rule: any) => Rule.required(),
     }),
     defineField({
       name: "image",
       title: "Image",
       type: "image",
+      options: {
+        hotspot: true,
+      },
     }),
     defineField({
       name: "awards",
@@ -46,7 +64,7 @@ export default defineType({
   ],
   preview: {
     select: {
-      title: "description",
+      title: "image",
     },
     prepare() {
       return {
