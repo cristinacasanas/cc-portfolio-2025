@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { AnimatePresence, motion } from "framer-motion";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 // Constants
@@ -235,6 +236,20 @@ export const AboutModal = () => {
 	const { t, i18n } = useTranslation();
 
 	const currentLanguage = i18n.language || "fr";
+
+	// Disable body scroll when modal is open
+	useEffect(() => {
+		if (isOpen) {
+			document.body.style.overflow = "hidden";
+		} else {
+			document.body.style.overflow = "unset";
+		}
+
+		// Cleanup function to restore scroll when component unmounts
+		return () => {
+			document.body.style.overflow = "unset";
+		};
+	}, [isOpen]);
 
 	if (!isOpen) return null;
 
