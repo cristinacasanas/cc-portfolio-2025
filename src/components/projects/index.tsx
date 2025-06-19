@@ -2,7 +2,7 @@ import Plus from "@/components/ui/icons/plus";
 import { Image } from "@/components/ui/image";
 import { useProjectVisibility } from "@/hooks/use-project-visibility";
 import { useLanguage } from "@/hooks/useLanguage";
-import { urlForGallery, urlForThumbnail } from "@/lib/sanity";
+import { urlForGallery, urlForHero, urlForThumbnail } from "@/lib/sanity";
 import { getVideoUrl, isVideo } from "@/utils/video";
 import {} from "@tanstack/react-router";
 import clsx from "clsx";
@@ -14,7 +14,10 @@ type ProjectWithCategories = Projects & {
 	expandedCategories?: Categories[];
 };
 
-const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
+const ProjectCard = ({
+	project,
+	isFirst = false,
+}: { project: ProjectWithCategories; isFirst?: boolean }) => {
 	const [isOpen, setIsOpen] = React.useState(false);
 	const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
 	const [direction, setDirection] = React.useState(0);
@@ -53,6 +56,7 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 				title={project.title}
 				direction={direction}
 				onDrag={handleDragEnd}
+				priority={isFirst}
 			/>
 			<Carousel
 				images={project.gallery}
@@ -135,11 +139,18 @@ const MediaItem = ({
 			// Get video URL using the utility function
 			src = getVideoUrl(item.asset._ref);
 		} else {
-			// Use optimized image URL based on context
-			const isGalleryItem = className?.includes("gallery") || ratio === "16/9";
-			src = isGalleryItem
-				? urlForGallery(item).url()
-				: urlForThumbnail(item).url();
+			// Use optimized image URL based on context and priority
+			if (priority) {
+				// Use high quality for priority images (LCP)
+				src = urlForHero(item).url();
+			} else {
+				// Use optimized image URL based on context
+				const isGalleryItem =
+					className?.includes("gallery") || ratio === "16/9";
+				src = isGalleryItem
+					? urlForGallery(item).url()
+					: urlForThumbnail(item).url();
+			}
 		}
 	} catch (error) {
 		console.error("Error generating URL:", error);
@@ -164,6 +175,7 @@ const MediaItem = ({
 			ratio={ratio}
 			src={src}
 			alt={item.alt || title || "Project content"}
+			priority={priority}
 			{...props}
 		/>
 	);
@@ -174,10 +186,12 @@ const MainImage = ({
 	title,
 	direction,
 	onDrag,
+	priority = false,
 }: {
 	item?: NonNullable<Projects["gallery"]>[0];
 	title?: string;
 	direction: number;
+	priority?: boolean;
 	onDrag: (
 		event: MouseEvent | TouchEvent | PointerEvent,
 		info: PanInfo,
@@ -240,6 +254,7 @@ const MainImage = ({
 									title={title}
 									draggable={false}
 									ratio="16/9"
+									priority={priority}
 								/>
 							</motion.div>
 						</AnimatePresence>

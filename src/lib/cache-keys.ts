@@ -20,33 +20,36 @@ export const CACHE_KEYS = {
 } as const;
 
 /**
- * Configuration de cache par type de données
+ * Configuration de cache optimisée pour portfolio
  */
 export const CACHE_CONFIG = {
-	// Données statiques (changent rarement)
+	// Projets Portfolio (ultra-statiques)
 	STATIC: {
-		staleTime: 30 * 60 * 1000, // 30 minutes
-		gcTime: 8 * 60 * 60 * 1000, // 8 heures
+		staleTime: 12 * 60 * 60 * 1000, // 12 heures - projets quasi-immutables
+		gcTime: 7 * 24 * 60 * 60 * 1000, // 7 jours - cache extrêmement long
 		refetchOnWindowFocus: false,
 		refetchOnMount: false,
-		refetchOnReconnect: false,
+		refetchOnReconnect: "always", // Resync après déconnexion
+		refetchInterval: false,
 	},
 
-	// Données dynamiques (changent parfois)
+	// Métadonnées (categories, about)
 	DYNAMIC: {
-		staleTime: 15 * 60 * 1000, // 15 minutes
-		gcTime: 4 * 60 * 60 * 1000, // 4 heures
+		staleTime: 4 * 60 * 60 * 1000, // 4 heures - changent peu
+		gcTime: 48 * 60 * 60 * 1000, // 48 heures - conservation longue
 		refetchOnWindowFocus: false,
 		refetchOnMount: false,
-		refetchOnReconnect: false,
+		refetchOnReconnect: "always",
+		refetchInterval: false,
 	},
 
-	// Données fréquentes (changent souvent)
+	// Lab/Network (plus dynamiques)
 	FREQUENT: {
-		staleTime: 5 * 60 * 1000, // 5 minutes
-		gcTime: 2 * 60 * 60 * 1000, // 2 heures
+		staleTime: 60 * 60 * 1000, // 1 heure - données potentiellement changeantes
+		gcTime: 12 * 60 * 60 * 1000, // 12 heures
 		refetchOnWindowFocus: false,
 		refetchOnMount: false,
-		refetchOnReconnect: false,
+		refetchOnReconnect: "always",
+		refetchInterval: false,
 	},
 } as const;

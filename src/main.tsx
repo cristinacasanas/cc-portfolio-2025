@@ -1,7 +1,5 @@
 import { RouterProvider, createRouter } from "@tanstack/react-router";
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/react";
-import { StrictMode } from "react";
+import { StrictMode, Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 
 import * as TanstackQuery from "./integrations/tanstack-query/root-provider";
@@ -12,6 +10,18 @@ import { routeTree } from "./routeTree.gen";
 
 import "./styles.css";
 import reportWebVitals from "./reportWebVitals.ts";
+
+// Lazy load analytics to reduce initial bundle size
+const Analytics = lazy(() =>
+	import("@vercel/analytics/react").then((module) => ({
+		default: module.Analytics,
+	})),
+);
+const SpeedInsights = lazy(() =>
+	import("@vercel/speed-insights/react").then((module) => ({
+		default: module.SpeedInsights,
+	})),
+);
 
 // Create a new router instance
 const router = createRouter({
@@ -38,8 +48,10 @@ if (rootElement && !rootElement.innerHTML) {
 	root.render(
 		<StrictMode>
 			<TanstackQuery.Provider>
-				<Analytics />
-				<SpeedInsights />
+				<Suspense fallback={null}>
+					<Analytics />
+					<SpeedInsights />
+				</Suspense>
 				<RouterProvider router={router} />
 			</TanstackQuery.Provider>
 		</StrictMode>,
