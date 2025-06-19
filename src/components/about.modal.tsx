@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { AnimatePresence, motion } from "framer-motion";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 // Constants
@@ -236,6 +237,20 @@ export const AboutModal = () => {
 
 	const currentLanguage = i18n.language || "fr";
 
+	// Disable body scroll when modal is open
+	useEffect(() => {
+		if (isOpen) {
+			document.body.style.overflow = "hidden";
+		} else {
+			document.body.style.overflow = "unset";
+		}
+
+		// Cleanup function to restore scroll when component unmounts
+		return () => {
+			document.body.style.overflow = "unset";
+		};
+	}, [isOpen]);
+
 	if (!isOpen) return null;
 
 	return (
@@ -245,14 +260,14 @@ export const AboutModal = () => {
 				animate={{ x: 0, opacity: 1 }}
 				exit={{ x: -100, opacity: 0 }}
 				transition={{ duration: 0.3 }}
-				className="absolute top-[var(--header-height)] left-0 z-50 flex h-[calc(100dvh-var(--header-height))] w-screen flex-col border-black bg-background-primary backdrop-blur-sm md:w-[455px] md:border-r"
+				className="absolute top-[var(--header-height)] left-0 z-50 flex h-[calc(100dvh-var(--header-height))] w-screen flex-col overflow-y-hidden border-black bg-background-primary backdrop-blur-sm md:w-[455px] md:border-r"
 			>
-				<div className="flex h-full min-h-0 flex-col overflow-hidden">
+				<div className="flex h-full flex-col overflow-hidden">
 					<div className="flex-shrink-0 px-4 pt-4 md:px-9 md:pt-14">
 						<PortraitSection aboutData={aboutData || []} />
 					</div>
 
-					<div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 md:px-9">
+					<div className="flex flex-1 flex-col overflow-hidden px-4 md:px-9">
 						<div className="flex flex-col gap-4 py-4 md:gap-12 md:py-6">
 							<DescriptionSection
 								aboutData={aboutData || []}
