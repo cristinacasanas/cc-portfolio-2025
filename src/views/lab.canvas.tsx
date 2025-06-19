@@ -7,34 +7,68 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Lab } from "studio/sanity.types";
 
-// Throttle helper function with proper typing
-const throttle = <T extends (...args: unknown[]) => void>(
+// Types
+interface Position {
+	x: number;
+	y: number;
+}
+
+interface CellPosition {
+	row: number;
+	col: number;
+}
+
+interface ImageSize {
+	width: number;
+	height: number;
+}
+
+interface GridConfig {
+	CELL_SIZE: number;
+	GRID_LIMIT: number;
+	MOMENTUM_DECAY: number;
+	CELL_GAP: number;
+	ANIMATION_THROTTLE: number;
+	MAX_IMAGE_WIDTH: number;
+}
+
+// Configuration constants
+const GRID_CONFIG: GridConfig = {
+	CELL_SIZE: 350,
+	GRID_LIMIT: 200,
+	MOMENTUM_DECAY: 0.92,
+	CELL_GAP: 30,
+	ANIMATION_THROTTLE: 16,
+	MAX_IMAGE_WIDTH: 300,
+};
+
+// Utility functions with proper typing
+function createThrottle<T extends (...args: never[]) => void>(
 	func: T,
 	limit: number,
-): T => {
+): (...args: Parameters<T>) => void {
 	let inThrottle = false;
-	return ((...args: Parameters<T>) => {
+	return (...args: Parameters<T>) => {
 		if (!inThrottle) {
-			func.apply(null, args);
+			func(...args);
 			inThrottle = true;
 			setTimeout(() => {
 				inThrottle = false;
 			}, limit);
 		}
-	}) as T;
-};
+	};
+}
 
-// Debounce helper function with proper typing
-const debounce = <T extends (...args: unknown[]) => void>(
+function createDebounce<T extends (...args: never[]) => void>(
 	func: T,
 	delay: number,
-): T => {
+): (...args: Parameters<T>) => void {
 	let timeoutId: ReturnType<typeof setTimeout>;
-	return ((...args: Parameters<T>) => {
+	return (...args: Parameters<T>) => {
 		clearTimeout(timeoutId);
-		timeoutId = setTimeout(() => func.apply(null, args), delay);
-	}) as T;
-};
+		timeoutId = setTimeout(() => func(...args), delay);
+	};
+}
 
 // Memoized Image Cell Component
 const ImageCell = memo<{
@@ -43,9 +77,9 @@ const ImageCell = memo<{
 	imageUrl: string;
 	cellSize: number;
 	cellGap: number;
-	position: { x: number; y: number };
+	position: Position;
 	zoom: number;
-	imageSize?: { width: number; height: number };
+	imageSize?: ImageSize;
 }>(({ row, col, imageUrl, cellSize, cellGap, position, zoom, imageSize }) => {
 	const totalCellSize = cellSize + cellGap;
 	const left = col * totalCellSize;
@@ -65,16 +99,17 @@ const ImageCell = memo<{
 		);
 	}
 
-	const MAX_IMAGE_WIDTH = 300;
 	let displayWidth = imageSize.width;
 	let displayHeight = imageSize.height;
 
-	if (displayWidth > MAX_IMAGE_WIDTH) {
-		const ratio = MAX_IMAGE_WIDTH / displayWidth;
-		displayWidth = MAX_IMAGE_WIDTH;
+	// Scale down if too wide
+	if (displayWidth > GRID_CONFIG.MAX_IMAGE_WIDTH) {
+		const ratio = GRID_CONFIG.MAX_IMAGE_WIDTH / displayWidth;
+		displayWidth = GRID_CONFIG.MAX_IMAGE_WIDTH;
 		displayHeight = imageSize.height * ratio;
 	}
 
+	// Scale down if too tall
 	const maxHeight = cellSize * 0.9;
 	if (displayHeight > maxHeight) {
 		const ratio = maxHeight / displayHeight;
@@ -82,6 +117,7 @@ const ImageCell = memo<{
 		displayWidth = displayWidth * ratio;
 	}
 
+	// Apply zoom
 	displayWidth *= zoom;
 	displayHeight *= zoom;
 
@@ -106,67 +142,11 @@ const ImageCell = memo<{
 	);
 });
 
-export const InfiniteImageGrid = () => {
-	const { data } = useQuery({
-		queryKey: ["lab-canvas"],
-		queryFn: async () => {
-			const data = await client.fetch<Lab[]>(getLab);
-			return data;
-		},
-		staleTime: 20 * 60 * 1000,
-		gcTime: 4 * 60 * 60 * 1000,
-		refetchOnWindowFocus: false,
-		refetchOnMount: false,
-	});
-
-	const allImages = useMemo(() => {
-		if (!data) return [];
-		return data.flatMap(
-			(lab) =>
-				lab.images
-					?.map((img) => (img as { asset?: { url?: string } }).asset?.url)
-					.filter((url): url is string => Boolean(url)) || [],
-		);
-	}, [data]);
-
-	const gridRef = useRef<HTMLDivElement>(null);
-	const [position, setPosition] = useState({ x: 0, y: 0 });
-	const [zoom, setZoom] = useState(1);
-	const [visibleCells, setVisibleCells] = useState<
-		Array<{ row: number; col: number }>
-	>([]);
-	const [isDragging, setIsDragging] = useState(false);
-	const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-	const [imagesSizes, setImagesSizes] = useState<
-		Record<string, { width: number; height: number }>
-	>({});
-	const [lastTouchDistance, setLastTouchDistance] = useState<number>(0);
-
-	const momentumRef = useRef({ x: 0, y: 0 });
-	const lastFrameTime = useRef(performance.now());
-	const animationFrameId = useRef<number | null>(null);
+// Custom hooks for better separation of concerns
+function useImagePreloading() {
+	const [imagesSizes, setImagesSizes] = useState<Record<string, ImageSize>>({});
 	const imageLoadingCache = useRef<Set<string>>(new Set());
 
-	// Optimized configuration
-	const CELL_SIZE = 350;
-	const GRID_LIMIT = 200; // Reduced from 500
-	const MOMENTUM_DECAY = 0.92; // Slightly faster decay
-	const CELL_GAP = 30;
-	const ANIMATION_THROTTLE = 16; // ~60fps
-
-	const actualCellSize = useMemo(() => CELL_SIZE * zoom, [zoom]);
-	const actualCellGap = useMemo(() => CELL_GAP * zoom, [zoom]);
-
-	const getImageUrl = useCallback(
-		(row: number, col: number): string => {
-			if (!allImages.length) return "";
-			const index = Math.abs((row * 10 + col) % allImages.length);
-			return allImages[index];
-		},
-		[allImages],
-	);
-
-	// Optimized image preloading with cache
 	const preloadImageSize = useCallback(
 		(url: string, cellKey: string) => {
 			if (imagesSizes[cellKey] || imageLoadingCache.current.has(cellKey)) {
@@ -194,14 +174,121 @@ export const InfiniteImageGrid = () => {
 		[imagesSizes],
 	);
 
-	const getTouchDistanceNative = useCallback((touches: TouchList) => {
+	return { imagesSizes, preloadImageSize };
+}
+
+function useMomentum() {
+	const momentumRef = useRef<Position>({ x: 0, y: 0 });
+	const lastFrameTime = useRef(performance.now());
+	const animationFrameId = useRef<number | null>(null);
+
+	const applyMomentum = useCallback(
+		(setPosition: React.Dispatch<React.SetStateAction<Position>>) => {
+			const threshold = 0.5;
+			if (
+				Math.abs(momentumRef.current.x) < threshold &&
+				Math.abs(momentumRef.current.y) < threshold
+			) {
+				if (animationFrameId.current) {
+					cancelAnimationFrame(animationFrameId.current);
+					animationFrameId.current = null;
+				}
+				return;
+			}
+
+			const now = performance.now();
+			const deltaTime = Math.min(
+				(now - lastFrameTime.current) / GRID_CONFIG.ANIMATION_THROTTLE,
+				2,
+			);
+			lastFrameTime.current = now;
+
+			setPosition((prev) => ({
+				x: prev.x + momentumRef.current.x * deltaTime,
+				y: prev.y + momentumRef.current.y * deltaTime,
+			}));
+
+			momentumRef.current = {
+				x: momentumRef.current.x * GRID_CONFIG.MOMENTUM_DECAY ** deltaTime,
+				y: momentumRef.current.y * GRID_CONFIG.MOMENTUM_DECAY ** deltaTime,
+			};
+
+			animationFrameId.current = requestAnimationFrame(() =>
+				applyMomentum(setPosition),
+			);
+		},
+		[],
+	);
+
+	const startMomentum = useCallback(
+		(setPosition: React.Dispatch<React.SetStateAction<Position>>) => {
+			if (
+				(Math.abs(momentumRef.current.x) > 0.5 ||
+					Math.abs(momentumRef.current.y) > 0.5) &&
+				!animationFrameId.current
+			) {
+				lastFrameTime.current = performance.now();
+				animationFrameId.current = requestAnimationFrame(() =>
+					applyMomentum(setPosition),
+				);
+			}
+		},
+		[applyMomentum],
+	);
+
+	const stopMomentum = useCallback(() => {
+		if (animationFrameId.current) {
+			cancelAnimationFrame(animationFrameId.current);
+			animationFrameId.current = null;
+		}
+		momentumRef.current = { x: 0, y: 0 };
+	}, []);
+
+	const updateMomentum = useCallback(
+		(deltaX: number, deltaY: number, factor = 6) => {
+			const now = performance.now();
+			const deltaTime = now - lastFrameTime.current;
+
+			if (deltaTime > 0) {
+				momentumRef.current = {
+					x: (deltaX / deltaTime) * factor,
+					y: (deltaY / deltaTime) * factor,
+				};
+				lastFrameTime.current = now;
+			}
+		},
+		[],
+	);
+
+	const addMomentum = useCallback(
+		(deltaX: number, deltaY: number, factor = 0.01) => {
+			momentumRef.current = {
+				x: momentumRef.current.x + deltaX * factor,
+				y: momentumRef.current.y + deltaY * factor,
+			};
+		},
+		[],
+	);
+
+	return {
+		momentumRef,
+		startMomentum,
+		stopMomentum,
+		updateMomentum,
+		addMomentum,
+		animationFrameId,
+	};
+}
+
+function useTouchGestures() {
+	const getTouchDistance = useCallback((touches: TouchList): number => {
 		if (touches.length < 2) return 0;
 		const dx = touches[0].clientX - touches[1].clientX;
 		const dy = touches[0].clientY - touches[1].clientY;
 		return Math.sqrt(dx * dx + dy * dy);
 	}, []);
 
-	const getTouchCenterNative = useCallback((touches: TouchList) => {
+	const getTouchCenter = useCallback((touches: TouchList): Position => {
 		if (touches.length === 1) {
 			return { x: touches[0].clientX, y: touches[0].clientY };
 		}
@@ -214,85 +301,98 @@ export const InfiniteImageGrid = () => {
 		return { x: 0, y: 0 };
 	}, []);
 
-	// Throttled visible cells calculation
-	const updateVisibleCells = useCallback(
-		throttle(() => {
-			if (!gridRef.current) return;
+	return { getTouchDistance, getTouchCenter };
+}
 
-			const rect = gridRef.current.getBoundingClientRect();
-			const viewportWidth = rect.width;
-			const viewportHeight = rect.height;
+export const InfiniteImageGrid = () => {
+	const { data } = useQuery({
+		queryKey: ["lab-canvas"],
+		queryFn: async () => {
+			const data = await client.fetch<Lab[]>(getLab);
+			return data;
+		},
+		staleTime: 20 * 60 * 1000,
+		gcTime: 4 * 60 * 60 * 1000,
+		refetchOnWindowFocus: false,
+		refetchOnMount: false,
+	});
 
-			const totalCellSize = actualCellSize + actualCellGap;
+	const allImages = useMemo(() => {
+		if (!data) return [];
+		return data.flatMap(
+			(lab) =>
+				lab.images
+					?.map((img) => (img as { asset?: { url?: string } }).asset?.url)
+					.filter((url): url is string => Boolean(url)) || [],
+		);
+	}, [data]);
 
-			// Reduced buffer for better performance
-			const buffer = 2; // Reduced from 3
-			const startCol = Math.floor(-position.x / totalCellSize) - buffer;
-			const startRow = Math.floor(-position.y / totalCellSize) - buffer;
-			const endCol =
-				startCol + Math.ceil(viewportWidth / totalCellSize) + buffer * 2;
-			const endRow =
-				startRow + Math.ceil(viewportHeight / totalCellSize) + buffer * 2;
+	// State
+	const gridRef = useRef<HTMLDivElement>(null);
+	const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
+	const [zoom, setZoom] = useState(1);
+	const [visibleCells, setVisibleCells] = useState<CellPosition[]>([]);
+	const [isDragging, setIsDragging] = useState(false);
+	const [dragStart, setDragStart] = useState<Position>({ x: 0, y: 0 });
+	const [lastTouchDistance, setLastTouchDistance] = useState<number>(0);
 
-			const cells: Array<{ row: number; col: number }> = [];
-			for (let row = startRow; row <= endRow; row++) {
-				for (let col = startCol; col <= endCol; col++) {
-					if (
-						row >= -GRID_LIMIT &&
-						row <= GRID_LIMIT &&
-						col >= -GRID_LIMIT &&
-						col <= GRID_LIMIT
-					) {
-						cells.push({ row, col });
-					}
-				}
-			}
+	// Custom hooks
+	const { imagesSizes, preloadImageSize } = useImagePreloading();
+	const { startMomentum, stopMomentum, updateMomentum, addMomentum } =
+		useMomentum();
+	const { getTouchDistance, getTouchCenter } = useTouchGestures();
 
-			setVisibleCells(cells);
-		}, 16), // 60fps throttle
-		[position, actualCellSize, actualCellGap],
+	// Computed values
+	const actualCellSize = useMemo(() => GRID_CONFIG.CELL_SIZE * zoom, [zoom]);
+	const actualCellGap = useMemo(() => GRID_CONFIG.CELL_GAP * zoom, [zoom]);
+
+	const getImageUrl = useCallback(
+		(row: number, col: number): string => {
+			if (!allImages.length) return "";
+			const index = Math.abs((row * 10 + col) % allImages.length);
+			return allImages[index];
+		},
+		[allImages],
 	);
 
-	// Optimized momentum animation
-	const applyMomentum = useCallback(() => {
-		const threshold = 0.5; // Increased threshold
-		if (
-			Math.abs(momentumRef.current.x) < threshold &&
-			Math.abs(momentumRef.current.y) < threshold
-		) {
-			if (animationFrameId.current) {
-				cancelAnimationFrame(animationFrameId.current);
-				animationFrameId.current = null;
+	// Visible cells calculation
+	const updateVisibleCells = useCallback(() => {
+		if (!gridRef.current) return;
+
+		const rect = gridRef.current.getBoundingClientRect();
+		const viewportWidth = rect.width;
+		const viewportHeight = rect.height;
+
+		const totalCellSize = actualCellSize + actualCellGap;
+		const buffer = 2;
+
+		const startCol = Math.floor(-position.x / totalCellSize) - buffer;
+		const startRow = Math.floor(-position.y / totalCellSize) - buffer;
+		const endCol =
+			startCol + Math.ceil(viewportWidth / totalCellSize) + buffer * 2;
+		const endRow =
+			startRow + Math.ceil(viewportHeight / totalCellSize) + buffer * 2;
+
+		const cells: CellPosition[] = [];
+		for (let row = startRow; row <= endRow; row++) {
+			for (let col = startCol; col <= endCol; col++) {
+				if (
+					row >= -GRID_CONFIG.GRID_LIMIT &&
+					row <= GRID_CONFIG.GRID_LIMIT &&
+					col >= -GRID_CONFIG.GRID_LIMIT &&
+					col <= GRID_CONFIG.GRID_LIMIT
+				) {
+					cells.push({ row, col });
+				}
 			}
-			return;
 		}
 
-		const now = performance.now();
-		const deltaTime = Math.min(
-			(now - lastFrameTime.current) / ANIMATION_THROTTLE,
-			2,
-		);
-		lastFrameTime.current = now;
+		setVisibleCells(cells);
+	}, [position, actualCellSize, actualCellGap]);
 
-		setPosition((prev) => ({
-			x: prev.x + momentumRef.current.x * deltaTime,
-			y: prev.y + momentumRef.current.y * deltaTime,
-		}));
-
-		momentumRef.current = {
-			x: momentumRef.current.x * MOMENTUM_DECAY ** deltaTime,
-			y: momentumRef.current.y * MOMENTUM_DECAY ** deltaTime,
-		};
-
-		animationFrameId.current = requestAnimationFrame(applyMomentum);
-	}, []);
-
-	// Optimized event handlers
-	useEffect(() => {
-		const gridElement = gridRef.current;
-		if (!gridElement) return;
-
-		const handleWheelDirect = throttle((e: WheelEvent) => {
+	// Event handlers
+	const handleWheelEvent = useCallback(
+		(e: WheelEvent) => {
 			e.preventDefault();
 
 			if (e.ctrlKey) {
@@ -309,24 +409,16 @@ export const InfiniteImageGrid = () => {
 				y: prev.y - deltaY * (1 / zoom) * 0.5,
 			}));
 
-			momentumRef.current = {
-				x: momentumRef.current.x - deltaX * 0.01 * (1 / zoom),
-				y: momentumRef.current.y - deltaY * 0.01 * (1 / zoom),
-			};
+			addMomentum(-deltaX * (1 / zoom), -deltaY * (1 / zoom));
+			startMomentum(setPosition);
+		},
+		[zoom, addMomentum, startMomentum],
+	);
 
-			if (!animationFrameId.current) {
-				lastFrameTime.current = performance.now();
-				animationFrameId.current = requestAnimationFrame(applyMomentum);
-			}
-		}, 8); // Increased throttling
-
-		const handleTouchStartDirect = (e: TouchEvent) => {
+	const handleTouchStart = useCallback(
+		(e: TouchEvent) => {
 			e.preventDefault();
-
-			if (animationFrameId.current) {
-				cancelAnimationFrame(animationFrameId.current);
-				animationFrameId.current = null;
-			}
+			stopMomentum();
 
 			const touches = e.touches;
 
@@ -335,14 +427,15 @@ export const InfiniteImageGrid = () => {
 				setDragStart({ x: touches[0].clientX, y: touches[0].clientY });
 			} else if (touches.length === 2) {
 				setIsDragging(false);
-				const distance = getTouchDistanceNative(touches);
+				const distance = getTouchDistance(touches);
 				setLastTouchDistance(distance);
 			}
+		},
+		[stopMomentum, getTouchDistance],
+	);
 
-			momentumRef.current = { x: 0, y: 0 };
-		};
-
-		const handleTouchMoveDirect = throttle((e: TouchEvent) => {
+	const handleTouchMove = useCallback(
+		(e: TouchEvent) => {
 			e.preventDefault();
 
 			const touches = e.touches;
@@ -351,16 +444,7 @@ export const InfiniteImageGrid = () => {
 				const dx = touches[0].clientX - dragStart.x;
 				const dy = touches[0].clientY - dragStart.y;
 
-				const now = performance.now();
-				const deltaTime = now - lastFrameTime.current;
-
-				if (deltaTime > 0) {
-					momentumRef.current = {
-						x: (dx / deltaTime) * 6, // Reduced momentum factor
-						y: (dy / deltaTime) * 6,
-					};
-					lastFrameTime.current = now;
-				}
+				updateMomentum(dx, dy);
 
 				setPosition((prev) => ({
 					x: prev.x + dx,
@@ -369,8 +453,8 @@ export const InfiniteImageGrid = () => {
 
 				setDragStart({ x: touches[0].clientX, y: touches[0].clientY });
 			} else if (touches.length === 2) {
-				const distance = getTouchDistanceNative(touches);
-				const center = getTouchCenterNative(touches);
+				const distance = getTouchDistance(touches);
+				const center = getTouchCenter(touches);
 
 				if (lastTouchDistance > 0) {
 					const scale = distance / lastTouchDistance;
@@ -392,80 +476,63 @@ export const InfiniteImageGrid = () => {
 
 				setLastTouchDistance(distance);
 			}
-		}, 16);
+		},
+		[
+			isDragging,
+			dragStart,
+			getTouchDistance,
+			getTouchCenter,
+			lastTouchDistance,
+			zoom,
+			updateMomentum,
+		],
+	);
 
-		const handleTouchEndDirect = (e: TouchEvent) => {
+	const handleTouchEnd = useCallback(
+		(e: TouchEvent) => {
 			e.preventDefault();
 			setIsDragging(false);
 			setLastTouchDistance(0);
-
-			if (
-				(Math.abs(momentumRef.current.x) > 0.5 ||
-					Math.abs(momentumRef.current.y) > 0.5) &&
-				!animationFrameId.current
-			) {
-				lastFrameTime.current = performance.now();
-				animationFrameId.current = requestAnimationFrame(applyMomentum);
-			}
-		};
-
-		gridElement.addEventListener("wheel", handleWheelDirect, {
-			passive: false,
-			capture: true,
-		});
-		gridElement.addEventListener("touchstart", handleTouchStartDirect, {
-			passive: false,
-			capture: true,
-		});
-		gridElement.addEventListener("touchmove", handleTouchMoveDirect, {
-			passive: false,
-			capture: true,
-		});
-		gridElement.addEventListener("touchend", handleTouchEndDirect, {
-			passive: false,
-			capture: true,
-		});
-
-		return () => {
-			gridElement.removeEventListener("wheel", handleWheelDirect);
-			gridElement.removeEventListener("touchstart", handleTouchStartDirect);
-			gridElement.removeEventListener("touchmove", handleTouchMoveDirect);
-			gridElement.removeEventListener("touchend", handleTouchEndDirect);
-		};
-	}, [
-		isDragging,
-		dragStart,
-		getTouchDistanceNative,
-		getTouchCenterNative,
-		lastTouchDistance,
-		zoom,
-		applyMomentum,
-	]);
-
-	// Debounced visible cells update
-	const debouncedUpdateVisibleCells = useMemo(
-		() => debounce(updateVisibleCells, 10),
-		[updateVisibleCells],
+			startMomentum(setPosition);
+		},
+		[startMomentum],
 	);
 
-	useEffect(() => {
-		debouncedUpdateVisibleCells();
+	const handleMouseDown = useCallback(
+		(e: React.MouseEvent) => {
+			stopMomentum();
+			setIsDragging(true);
+			setDragStart({ x: e.clientX, y: e.clientY });
+		},
+		[stopMomentum],
+	);
 
-		const handleResize = debounce(() => {
-			updateVisibleCells();
-		}, 100);
+	const handleMouseMove = useCallback(
+		(e: React.MouseEvent) => {
+			if (!isDragging) return;
 
-		window.addEventListener("resize", handleResize);
-		return () => {
-			window.removeEventListener("resize", handleResize);
-			if (animationFrameId.current) {
-				cancelAnimationFrame(animationFrameId.current);
-			}
-		};
-	}, [updateVisibleCells, debouncedUpdateVisibleCells]);
+			const dx = e.clientX - dragStart.x;
+			const dy = e.clientY - dragStart.y;
+
+			updateMomentum(dx, dy);
+
+			setPosition((prev) => ({
+				x: prev.x + dx,
+				y: prev.y + dy,
+			}));
+
+			setDragStart({ x: e.clientX, y: e.clientY });
+		},
+		[isDragging, dragStart, updateMomentum],
+	);
+
+	const handleMouseUp = useCallback(() => {
+		setIsDragging(false);
+		startMomentum(setPosition);
+	}, [startMomentum]);
 
 	const handleKeyDown = useCallback(
-		throttle((e: KeyboardEvent) => {
+		(e: KeyboardEvent) => {
 			const moveAmount = 100 * (1 / zoom);
 
 			switch (e.key) {
@@ -488,70 +555,73 @@ export const InfiniteImageGrid = () => {
 					setZoom((prev) => Math.max(prev - 0.1, 0.5));
 					break;
 			}
-		}, 50),
+		},
 		[zoom],
 	);
 
+	// Event listeners setup
 	useEffect(() => {
-		window.addEventListener("keydown", handleKeyDown);
-		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [handleKeyDown]);
+		const gridElement = gridRef.current;
+		if (!gridElement) return;
 
-	const handleMouseDown = useCallback((e: React.MouseEvent) => {
-		if (animationFrameId.current) {
-			cancelAnimationFrame(animationFrameId.current);
-			animationFrameId.current = null;
-		}
+		const throttledWheel = createThrottle(handleWheelEvent, 8);
+		const throttledTouchMove = createThrottle(handleTouchMove, 16);
+		const throttledKeyDown = createThrottle(handleKeyDown, 50);
 
-		setIsDragging(true);
-		setDragStart({ x: e.clientX, y: e.clientY });
-		momentumRef.current = { x: 0, y: 0 };
-	}, []);
+		gridElement.addEventListener("wheel", throttledWheel, {
+			passive: false,
+			capture: true,
+		});
+		gridElement.addEventListener("touchstart", handleTouchStart, {
+			passive: false,
+			capture: true,
+		});
+		gridElement.addEventListener("touchmove", throttledTouchMove, {
+			passive: false,
+			capture: true,
+		});
+		gridElement.addEventListener("touchend", handleTouchEnd, {
+			passive: false,
+			capture: true,
+		});
 
-	const handleMouseMove = useCallback(
-		throttle((e: React.MouseEvent) => {
-			if (!isDragging) return;
+		window.addEventListener("keydown", throttledKeyDown);
 
-			const dx = e.clientX - dragStart.x;
-			const dy = e.clientY - dragStart.y;
+		return () => {
+			gridElement.removeEventListener("wheel", throttledWheel);
+			gridElement.removeEventListener("touchstart", handleTouchStart);
+			gridElement.removeEventListener("touchmove", throttledTouchMove);
+			gridElement.removeEventListener("touchend", handleTouchEnd);
+			window.removeEventListener("keydown", throttledKeyDown);
+		};
+	}, [
+		handleWheelEvent,
+		handleTouchStart,
+		handleTouchMove,
+		handleTouchEnd,
+		handleKeyDown,
+	]);
 
-			const now = performance.now();
-			const deltaTime = now - lastFrameTime.current;
-
-			if (deltaTime > 0) {
-				momentumRef.current = {
-					x: (dx / deltaTime) * 6,
-					y: (dy / deltaTime) * 6,
-				};
-				lastFrameTime.current = now;
-			}
-
-			setPosition((prev) => ({
-				x: prev.x + dx,
-				y: prev.y + dy,
-			}));
-
-			setDragStart({ x: e.clientX, y: e.clientY });
-		}, 16),
-		[isDragging, dragStart],
+	// Update visible cells with debouncing
+	const debouncedUpdateVisibleCells = useMemo(
+		() => createDebounce(updateVisibleCells, 10),
+		[updateVisibleCells],
 	);
 
-	const handleMouseUp = useCallback(() => {
-		setIsDragging(false);
+	useEffect(() => {
+		debouncedUpdateVisibleCells();
 
-		if (
-			(Math.abs(momentumRef.current.x) > 0.5 ||
-				Math.abs(momentumRef.current.y) > 0.5) &&
-			!animationFrameId.current
-		) {
-			lastFrameTime.current = performance.now();
-			animationFrameId.current = requestAnimationFrame(applyMomentum);
-		}
-	}, [applyMomentum]);
+		const handleResize = createDebounce(updateVisibleCells, 100);
+		window.addEventListener("resize", handleResize);
 
-	// Memoized cells rendering with batch preloading
+		return () => {
+			window.removeEventListener("resize", handleResize);
+		};
+	}, [updateVisibleCells, debouncedUpdateVisibleCells]);
+
+	// Rendered cells with batch preloading
 	const renderedCells = useMemo(() => {
-		// Batch preload images using for...of
+		// Batch preload images
 		for (const { row, col } of visibleCells) {
 			const cellKey = `${row}-${col}`;
 			const imageUrl = getImageUrl(row, col);
@@ -605,7 +675,7 @@ export const InfiniteImageGrid = () => {
 				className="absolute inset-0 overflow-hidden"
 				ref={gridRef}
 				onMouseDown={handleMouseDown}
-				onMouseMove={handleMouseMove}
+				onMouseMove={createThrottle(handleMouseMove, 16)}
 				onMouseUp={handleMouseUp}
 				onMouseLeave={handleMouseUp}
 				style={{

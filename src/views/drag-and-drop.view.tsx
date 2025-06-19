@@ -315,7 +315,7 @@ export function DragAndDropView() {
 					className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center"
 				>
 					<div
-						className="select-none text-[80vw] md:text-[70vw] leading-none"
+						className="select-none text-[80vw] leading-none md:text-[70vw]"
 						style={{ fontFamily: "var(--font-departure)" }}
 					>
 						=)
