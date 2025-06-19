@@ -1,9 +1,21 @@
 import { urlFor } from "@/lib/sanity";
-import { scrollToProject } from "@/lib/scroll.service";
 import { getUniqueVideoKey, getVideoUrl, isVideo } from "@/utils/video";
 import clsx from "clsx";
 import type { Projects } from "studio/sanity.types";
 import { Image } from "./image";
+
+// Simple scroll to project function
+const scrollToProject = (projectId: string): void => {
+	const projectElement = document.querySelector(
+		`[data-project-id="${projectId}"]`,
+	);
+	if (projectElement) {
+		projectElement.scrollIntoView({
+			behavior: "smooth",
+			block: "center",
+		});
+	}
+};
 
 // Define AspectRatio type to match the one in Image component
 type AspectRatio = "16/9" | "4/3" | "1/1" | "3/4" | "9/16" | "4/5";
@@ -105,9 +117,9 @@ export const Thumbnail = ({
 		<button
 			type="button"
 			onClick={handleClick}
-			className="block h-full w-full cursor-pointer"
+			className="block size-full cursor-pointer"
 		>
-			<div className="relative w-full" style={{ aspectRatio: ratio }}>
+			<div className="relative size-full" style={{ aspectRatio: ratio }}>
 				{isVideoThumbnail ? (
 					<>
 						<video

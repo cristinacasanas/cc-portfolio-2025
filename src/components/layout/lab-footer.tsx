@@ -65,7 +65,7 @@ export const LabFooter = ({
 	return (
 		<div className="pointer-events-none fixed right-0 bottom-6 left-0 z-40 flex items-end justify-between md:right-6 md:left-6">
 			<motion.h1
-				className="font-extralight font-mono uppercase"
+				className="pl-4 font-extralight font-mono uppercase md:pl-0"
 				animate={{
 					fontSize,
 					lineHeight,

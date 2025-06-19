@@ -1,59 +1,31 @@
 import Plus from "@/components/ui/icons/plus";
 import { Image } from "@/components/ui/image";
+import { useProjectVisibility } from "@/hooks/use-project-visibility";
 import { useLanguage } from "@/hooks/useLanguage";
-import { urlFor } from "@/lib/sanity";
-import {
-	clear as clearScrollService,
-	registerProject,
-} from "@/lib/scroll.service";
+import { urlForGallery, urlForThumbnail } from "@/lib/sanity";
 import { getVideoUrl, isVideo } from "@/utils/video";
+import {} from "@tanstack/react-router";
 import clsx from "clsx";
 import { AnimatePresence, type PanInfo, motion } from "framer-motion";
-import React, { useEffect, useRef } from "react";
+import React from "react";
 import type { Categories, Projects } from "studio/sanity.types";
 
 type ProjectWithCategories = Projects & {
 	expandedCategories?: Categories[];
 };
 
-// Référence globale pour suivre tous les projets et leurs positions
-export const projectsRegistry = {
-	projects: new Map<string, { element: HTMLDivElement; position: number }>(),
-	lastProjectId: null as string | null,
-
-	// Méthode pour enregistrer un projet
-	registerProject(id: string, element: HTMLDivElement, position: number) {
-		this.projects.set(id, { element, position });
-		// Enregistrer également dans le ScrollService
-		registerProject(id, element);
-		// Mettre à jour le dernier projet (celui avec la position la plus élevée)
-		if (
-			this.lastProjectId === null ||
-			position > (this.projects.get(this.lastProjectId)?.position || 0)
-		) {
-			this.lastProjectId = id;
-		}
-	},
-
-	// Méthode pour vérifier si un projet est le dernier
-	isLastProject(id: string): boolean {
-		return id === this.lastProjectId;
-	},
-
-	// Méthode pour nettoyer le registre
-	clear() {
-		this.projects.clear();
-		this.lastProjectId = null;
-		clearScrollService();
-	},
-};
-
 const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 	const [isOpen, setIsOpen] = React.useState(false);
 	const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
 	const [direction, setDirection] = React.useState(0);
-	const ref = useRef<HTMLDivElement>(null);
 	const projectId = project.slug?.current || project._id;
+
+	// Use the custom hook for visibility detection
+	const { ref } = useProjectVisibility({
+		projectId,
+		threshold: 0.5,
+		rootMargin: window.innerWidth < 768 ? "-15% 0px" : "-20% 0px",
+	});
 
 	// Function to handle image navigation
 	const navigateImage = (newIndexInput: number) => {
@@ -69,170 +41,6 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 		setDirection(newIndex > currentImageIndex ? 1 : -1);
 		setCurrentImageIndex(newIndex);
 	};
-
-	// Enregistrer la position du projet lors du montage
-	useEffect(() => {
-		if (!ref.current) return;
-
-		// Calculer la position verticale du projet dans le document
-		const position = ref.current.getBoundingClientRect().top + window.scrollY;
-		projectsRegistry.registerProject(projectId, ref.current, position);
-
-		return () => {
-			// Si tous les projets sont démontés, nettoyer le registre
-			if (document.querySelectorAll("[data-project-id]").length === 1) {
-				projectsRegistry.clear();
-			}
-		};
-	}, [projectId]);
-
-	useEffect(() => {
-		if (!ref.current) return;
-
-		// Détecter si c'est un appareil tactile
-		const isTouchDevice =
-			"ontouchstart" in window || navigator.maxTouchPoints > 0;
-		const isMobile = window.innerWidth < 768;
-
-		const observerOptions = {
-			threshold: isTouchDevice
-				? [0, 0.2, 0.4, 0.6, 0.8, 1.0]
-				: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-			rootMargin: isMobile ? "-15% 0px" : "-20% 0px",
-		};
-
-		// Fonction pour calculer le pourcentage du projet visible dans la fenêtre
-		const calculateVisibleRatio = (rect: DOMRectReadOnly): number => {
-			const visibleTop = Math.max(0, rect.top);
-			const visibleBottom = Math.min(window.innerHeight, rect.bottom);
-			const visibleHeight = Math.max(0, visibleBottom - visibleTop);
-			return visibleHeight / rect.height;
-		};
-
-		// Fonction pour calculer à quel point le projet est centré dans la vue
-		const calculateCentrality = (rect: DOMRectReadOnly): number => {
-			const projectCenter = rect.top + rect.height / 2;
-			const viewportCenter = window.innerHeight / 2;
-			const distanceFromCenter = Math.abs(projectCenter - viewportCenter);
-			const maxDistance = window.innerHeight / 2;
-
-			return 1 - Math.min(1, distanceFromCenter / maxDistance);
-		};
-
-		// Fonction pour déterminer si le projet est entrant par le haut
-		const isEnteringFromTop = (rect: DOMRectReadOnly): boolean => {
-			const topEdgePosition = rect.top;
-			return topEdgePosition >= 0 && topEdgePosition < window.innerHeight * 0.3;
-		};
-
-		// Fonction pour vérifier si on est au bas de la page
-		const isNearBottomOfPage = (): boolean => {
-			const scrollPosition = window.scrollY + window.innerHeight;
-			const documentHeight = document.documentElement.scrollHeight;
-			return documentHeight - scrollPosition < documentHeight * 0.1;
-		};
-
-		let lastEventTime = 0;
-		let lastScrollY = window.scrollY;
-		let scrollVelocity = 0;
-
-		const observer = new IntersectionObserver((entries) => {
-			const now = Date.now();
-			const currentScrollY = window.scrollY;
-
-			// Calculer la vélocité de scroll
-			scrollVelocity = Math.abs(currentScrollY - lastScrollY);
-			lastScrollY = currentScrollY;
-
-			// Throttle adaptatif basé sur la vélocité de scroll
-			const adaptiveThrottle =
-				scrollVelocity > 300 ? 300 : isTouchDevice ? 200 : 100;
-
-			if (now - lastEventTime < adaptiveThrottle) return;
-			lastEventTime = now;
-
-			for (const entry of entries) {
-				const boundingRect = entry.boundingClientRect;
-				const visibleRatio = calculateVisibleRatio(boundingRect);
-				const centrality = calculateCentrality(boundingRect);
-				const enteringFromTop = isEnteringFromTop(boundingRect);
-				const isLastProject = projectsRegistry.isLastProject(projectId);
-				const isAtBottom = isNearBottomOfPage();
-
-				// Vérifier si on est au tout début de la page
-				const isAtTopOfPage = window.scrollY < 100;
-				const isFirstProject =
-					projectsRegistry.projects.size > 0 &&
-					Array.from(projectsRegistry.projects.entries()).sort(
-						([, a], [, b]) => a.position - b.position,
-					)[0][0] === projectId;
-
-				// Calculer un score de visibilité unifié
-				let visibilityScore = visibleRatio * 0.5 + centrality * 0.5;
-
-				if (enteringFromTop) {
-					visibilityScore += 0.2;
-				}
-
-				if (isLastProject && isAtBottom && visibleRatio > 0.2) {
-					visibilityScore += 0.3;
-				}
-
-				// Bonus spécial pour le premier projet quand on est en haut de page
-				if (isFirstProject && isAtTopOfPage && visibleRatio > 0.3) {
-					visibilityScore += 0.4;
-				}
-
-				// Seuils plus élevés pour les appareils tactiles et les scrolls rapides
-				const activeThreshold =
-					(isTouchDevice ? 0.7 : 0.6) + (scrollVelocity > 200 ? 0.1 : 0);
-				const visibilityThreshold = isTouchDevice ? 0.25 : 0.2;
-
-				// Déterminer si le projet est actif
-				const isActive =
-					(centrality > activeThreshold && visibleRatio > 0.4) ||
-					enteringFromTop ||
-					(isLastProject && isAtBottom && visibleRatio > visibilityThreshold) ||
-					(isFirstProject && isAtTopOfPage && visibleRatio > 0.3);
-
-				// Toujours émettre l'événement si le projet est visible
-				if (entry.isIntersecting && visibleRatio > 0.15) {
-					const event = new CustomEvent("projectInView", {
-						detail: {
-							projectId,
-							isActive,
-							intersectionRatio: visibilityScore,
-							centrality,
-							visibleRatio,
-							enteringFromTop,
-						},
-					});
-					window.dispatchEvent(event);
-				} else if (!entry.isIntersecting) {
-					// Émettre un événement de sortie
-					const event = new CustomEvent("projectInView", {
-						detail: {
-							projectId,
-							isActive: false,
-							intersectionRatio: 0,
-							centrality: 0,
-							visibleRatio: 0,
-							enteringFromTop: false,
-						},
-					});
-					window.dispatchEvent(event);
-				}
-			}
-		}, observerOptions);
-
-		observer.observe(ref.current);
-
-		return () => {
-			if (ref.current) {
-				observer.unobserve(ref.current);
-			}
-		};
-	}, [projectId]);
 
 	return (
 		<div
@@ -274,119 +82,13 @@ const ProjectCard = ({ project }: { project: ProjectWithCategories }) => {
 	}
 };
 
-// Video component with the same props interface as Image
-const Video = ({
-	className,
-	src,
-	alt,
-	ratio = "16/9",
-	...props
-}: {
-	className?: string;
-	src: string;
-	alt: string;
-	ratio?: "16/9" | "4/3" | "1/1" | "3/4" | "9/16" | "4/5";
-}) => {
-	const [hasError, setHasError] = React.useState(false);
-	const videoRef = React.useRef<HTMLVideoElement>(null);
-
-	// Get aspect ratio class
-	const aspectClass = React.useMemo(() => {
-		switch (ratio) {
-			case "16/9":
-				return "aspect-video";
-			case "4/3":
-				return "aspect-[4/3]";
-			case "1/1":
-				return "aspect-square";
-			case "3/4":
-				return "aspect-[3/4]";
-			case "9/16":
-				return "aspect-[9/16]";
-			case "4/5":
-				return "aspect-[4/5]";
-			default:
-				return "aspect-video";
-		}
-	}, [ratio]);
-
-	// Try to reload the video if it fails to load
-	React.useEffect(() => {
-		let retryCount = 0;
-		const maxRetries = 2;
-
-		const tryReload = () => {
-			if (videoRef.current && hasError && retryCount < maxRetries) {
-				retryCount++;
-				videoRef.current.load();
-			}
-		};
-
-		if (hasError) {
-			const timer = setTimeout(tryReload, 1000);
-			return () => clearTimeout(timer);
-		}
-	}, [hasError]);
-
-	if (!src) {
-		return (
-			<div
-				className={clsx(
-					aspectClass,
-					"flex items-center justify-center bg-gray-100",
-					className,
-				)}
-			>
-				<span className="text-gray-400">Video source missing</span>
-			</div>
-		);
-	}
-
-	return (
-		<>
-			<video
-				ref={videoRef}
-				className={clsx(
-					aspectClass,
-					"h-auto w-full object-cover",
-					className,
-					hasError && "hidden",
-				)}
-				src={src}
-				title={alt}
-				playsInline
-				autoPlay
-				loop
-				muted
-				onError={() => setHasError(true)}
-				onLoadedData={() => setHasError(false)}
-				{...props}
-			>
-				<track kind="captions" />
-				Your browser does not support the video tag.
-			</video>
-
-			{hasError && (
-				<div
-					className={clsx(
-						aspectClass,
-						"flex items-center justify-center bg-gray-100",
-						className,
-					)}
-				>
-					<span className="text-gray-500">Failed to load video</span>
-				</div>
-			)}
-		</>
-	);
-};
-
 // Media item component that handles both images and videos
 interface MediaItemProps {
 	item: NonNullable<Projects["gallery"]>[0];
 	title?: string;
 	className?: string;
 	ratio?: "16/9" | "4/3" | "1/1" | "3/4" | "9/16" | "4/5";
+	priority?: boolean;
 	[key: string]: unknown;
 }
 
@@ -395,6 +97,7 @@ const MediaItem = ({
 	title,
 	className,
 	ratio = "16/9",
+	priority = false,
 	...props
 }: MediaItemProps) => {
 	if (!item) {
@@ -413,6 +116,7 @@ const MediaItem = ({
 				title={title}
 				className={className}
 				ratio={ratio}
+				priority={priority}
 				{...props}
 			/>
 		);
@@ -431,8 +135,11 @@ const MediaItem = ({
 			// Get video URL using the utility function
 			src = getVideoUrl(item.asset._ref);
 		} else {
-			// Get image URL using Sanity's urlFor
-			src = urlFor(item).url();
+			// Use optimized image URL based on context
+			const isGalleryItem = className?.includes("gallery") || ratio === "16/9";
+			src = isGalleryItem
+				? urlForGallery(item).url()
+				: urlForThumbnail(item).url();
 		}
 	} catch (error) {
 		console.error("Error generating URL:", error);
@@ -456,7 +163,7 @@ const MediaItem = ({
 			className={className}
 			ratio={ratio}
 			src={src}
-			alt={item.alt || title || "Project image"}
+			alt={item.alt || title || "Project content"}
 			{...props}
 		/>
 	);
@@ -564,12 +271,12 @@ const Carousel = ({
 					onClick={() => setCurrentIndex(index)}
 					type="button"
 				>
-					<div className="w-[108px] h-[61px] overflow-hidden">
+					<div className="h-[61px] w-[108px] overflow-hidden">
 						<MediaItem
 							item={item}
 							alt={item.alt || ""}
 							draggable={false}
-							className="w-full h-full cursor-pointer bg-white object-cover"
+							className="size-full cursor-pointer bg-white object-cover"
 							ratio="16/9"
 							controls={false}
 							muted={true}
@@ -660,6 +367,120 @@ const ProjectDescription = ({
 				{localizedDescription}
 			</p>
 		</motion.div>
+	);
+};
+
+// Video component with the same props interface as Image
+const Video = ({
+	className,
+	src,
+	alt,
+	ratio = "16/9",
+	...props
+}: {
+	className?: string;
+	src: string;
+	alt: string;
+	ratio?: "16/9" | "4/3" | "1/1" | "3/4" | "9/16" | "4/5";
+}) => {
+	const [hasError, setHasError] = React.useState(false);
+	const videoRef = React.useRef<HTMLVideoElement>(null);
+
+	// Get aspect ratio class
+	const aspectClass = React.useMemo(() => {
+		switch (ratio) {
+			case "16/9":
+				return "aspect-video";
+			case "4/3":
+				return "aspect-[4/3]";
+			case "1/1":
+				return "aspect-square";
+			case "3/4":
+				return "aspect-[3/4]";
+			case "9/16":
+				return "aspect-[9/16]";
+			case "4/5":
+				return "aspect-[4/5]";
+			default:
+				return "aspect-video";
+		}
+	}, [ratio]);
+
+	// Try to reload the video if it fails to load
+	React.useEffect(() => {
+		let retryCount = 0;
+		const maxRetries = 2;
+
+		const tryReload = () => {
+			if (videoRef.current && hasError && retryCount < maxRetries) {
+				retryCount++;
+				videoRef.current.load();
+			}
+		};
+
+		if (hasError) {
+			const timer = setTimeout(tryReload, 1000);
+			return () => clearTimeout(timer);
+		}
+	}, [hasError]);
+
+	if (!src) {
+		return (
+			<div
+				className={clsx(
+					aspectClass,
+					"flex items-center justify-center bg-gray-100",
+					className,
+				)}
+			>
+				<span className="text-gray-400">Video source missing</span>
+			</div>
+		);
+	}
+
+	React.useEffect(() => {
+		console.log("Video component - src:", src);
+		videoRef.current?.play();
+		console.log("Video component - playing");
+	}, []);
+
+	return (
+		<>
+			<video
+				ref={videoRef}
+				className={clsx(
+					aspectClass,
+					"h-auto w-full object-cover",
+					className,
+					hasError && "hidden",
+				)}
+				src={src}
+				title={alt}
+				autoPlay={true}
+				playsInline
+				loop
+				muted
+				preload="auto"
+				onError={() => setHasError(true)}
+				onLoadedData={() => setHasError(false)}
+				{...props}
+			>
+				<track kind="captions" />
+				Your browser does not support the video tag.
+			</video>
+
+			{hasError && (
+				<div
+					className={clsx(
+						aspectClass,
+						"flex items-center justify-center bg-gray-100",
+						className,
+					)}
+				>
+					<span className="text-gray-500">Failed to load video</span>
+				</div>
+			)}
+		</>
 	);
 };
 

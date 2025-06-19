@@ -1,19 +1,19 @@
 import { Thumbnail } from "@/components/ui/thumbnail";
+import { useThumbnailSync } from "@/hooks/use-thumbnail-sync";
 import { client } from "@/lib/sanity";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { Categories, Projects } from "studio/sanity.types";
 import { Sidebar } from "../sidebar";
 
-// Specific thumbnail queries to ensure all required fields are fetched
+// Queries optimisées pour les thumbnails de la sidebar
 const thumbnailsProjectsQuery = `*[_type == "projects"] | order(orderRank) {
 	_id,
 	title,
 	slug,
 	thumbnail,
-	gallery[0],
 	"expandedCategories": categories[]-> {
 		_id,
 		title,
@@ -27,7 +27,6 @@ const thumbnailsProjectsByCategoryQuery = (categorySlug: string) => `
 		title,
 		slug,
 		thumbnail,
-		gallery[0],
 		"expandedCategories": categories[]-> {
 			_id,
 			title,
@@ -40,20 +39,16 @@ type ProjectWithCategories = Projects & {
 	expandedCategories?: Categories[];
 };
 
-interface ProjectInViewEvent extends CustomEvent {
-	detail: {
-		projectId: string;
-		isActive: boolean;
-		intersectionRatio: number;
-	};
-}
-
 export const ThumbnailsSidebar = () => {
 	const { category, project } = useSearch({ from: "/" });
-	const [visibleProject, setVisibleProject] = useState<string | null>(null);
 	const sidebarRef = useRef<HTMLDivElement>(null);
 	const thumbnailRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 	const isScrollingRef = useRef(false);
+
+	// Use the thumbnail sync hook
+	const { activeProject } = useThumbnailSync({
+		debounceMs: 100,
+	});
 
 	// Apply smooth scroll behavior when component mounts
 	useEffect(() => {
@@ -68,7 +63,7 @@ export const ThumbnailsSidebar = () => {
 	}, []);
 
 	const { data } = useQuery({
-		queryKey: ["thumbnails", { category }],
+		queryKey: ["sidebar-thumbnails", { category }],
 		queryFn: async () => {
 			if (category) {
 				return client.fetch<ProjectWithCategories[]>(
@@ -78,8 +73,10 @@ export const ThumbnailsSidebar = () => {
 
 			return client.fetch<ProjectWithCategories[]>(thumbnailsProjectsQuery);
 		},
-		staleTime: 1000 * 60 * 5, // 5 minutes
-		gcTime: 1000 * 60 * 30, // 30 minutes
+		staleTime: 15 * 60 * 1000, // 15 minutes - cache plus long
+		gcTime: 2 * 60 * 60 * 1000, // 2 heures
+		refetchOnWindowFocus: false,
+		refetchOnMount: false,
 	});
 
 	// Simple function to scroll to a thumbnail
@@ -120,56 +117,16 @@ export const ThumbnailsSidebar = () => {
 	// Update based on URL parameter
 	useEffect(() => {
 		if (project) {
-			setVisibleProject(project);
 			setTimeout(() => scrollToThumbnail(project), 50);
 		}
 	}, [project]);
 
-	// Set initial project
+	// Effect to scroll when activeProject changes
 	useEffect(() => {
-		if (!visibleProject && data && data.length > 0) {
-			const firstProject = data[0];
-			const firstProjectId = firstProject.slug?.current || firstProject._id;
-			if (firstProjectId) {
-				setVisibleProject(firstProjectId);
-			}
+		if (activeProject) {
+			scrollToThumbnail(activeProject);
 		}
-	}, [data, visibleProject]);
-
-	// Listen for project visibility events from main content
-	useEffect(() => {
-		const handleProjectInView = (event: Event) => {
-			const e = event as ProjectInViewEvent;
-			if (!e.detail) return;
-
-			const { projectId, isActive, intersectionRatio } = e.detail;
-
-			if (isActive && intersectionRatio > 0.5 && !isScrollingRef.current) {
-				setVisibleProject(projectId);
-				scrollToThumbnail(projectId);
-			}
-		};
-
-		// Add event listener
-		window.addEventListener(
-			"projectInView",
-			handleProjectInView as EventListener,
-		);
-
-		return () => {
-			window.removeEventListener(
-				"projectInView",
-				handleProjectInView as EventListener,
-			);
-		};
-	}, []);
-
-	// Effect to scroll when visibleProject changes
-	useEffect(() => {
-		if (visibleProject) {
-			scrollToThumbnail(visibleProject);
-		}
-	}, [visibleProject]);
+	}, [activeProject]);
 
 	return (
 		<Sidebar
@@ -186,7 +143,7 @@ export const ThumbnailsSidebar = () => {
 							if (el) thumbnailRefs.current.set(projectId, el);
 						}}
 						animate={{
-							opacity: visibleProject === projectId ? 1 : 0.5,
+							opacity: activeProject === projectId ? 1 : 0.5,
 						}}
 						transition={{
 							duration: 0.3,

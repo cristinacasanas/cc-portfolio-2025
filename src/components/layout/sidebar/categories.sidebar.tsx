@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/useLanguage";
 import { getAllCategories } from "@/lib/queries";
 import { client } from "@/lib/sanity";
 import { useQuery } from "@tanstack/react-query";
@@ -8,15 +9,24 @@ import { Sidebar } from "../sidebar";
 
 export const CategoriesSidebar = () => {
 	const { category } = useSearch({ from: "/" });
+	const { getLocalizedContent } = useLanguage();
 
 	const { data } = useQuery({
 		queryKey: ["categories"],
 		queryFn: () => client.fetch<Categories[]>(getAllCategories),
+		staleTime: 30 * 60 * 1000, // 30 minutes - les catégories changent rarement
+		gcTime: 4 * 60 * 60 * 1000, // 4 heures
+		refetchOnWindowFocus: false,
+		refetchOnMount: false,
 	});
 
 	const { data: networkData } = useQuery({
 		queryKey: ["network"],
-		queryFn: () => client.fetch(`*[_type == "network"][0] | order(orderRank)`),
+		queryFn: () => client.fetch(`*[_type == "network"][0] {_id, links}`),
+		staleTime: 60 * 60 * 1000, // 1 heure - les données réseau changent très rarement
+		gcTime: 8 * 60 * 60 * 1000, // 8 heures
+		refetchOnWindowFocus: false,
+		refetchOnMount: false,
 	});
 
 	return (
@@ -53,7 +63,10 @@ export const CategoriesSidebar = () => {
 											: "text-text-secondary",
 									)}
 								>
-									{categoryItem.title?.fr || categoryItem.title?.en || ""}
+									{getLocalizedContent(
+										categoryItem.title?.fr || "",
+										categoryItem.title?.en || "",
+									)}
 								</Link>
 							))}
 						</div>
