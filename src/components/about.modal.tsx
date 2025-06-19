@@ -253,7 +253,7 @@ export const AboutModal = () => {
 
 					<div className="flex flex-1 flex-col-reverse items-start justify-between self-stretch md:flex-row md:gap-0">
 						<div className="inline-flex flex-1 flex-col items-start justify-start self-stretch md:flex-0">
-							<div className="flex flex-col items-start justify-start gap-20">
+							<div className="flex flex-col items-start justify-start gap-10 md:gap-20">
 								<DescriptionSection
 									aboutData={aboutData || []}
 									currentLanguage={currentLanguage}
