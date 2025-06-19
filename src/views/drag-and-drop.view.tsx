@@ -207,7 +207,15 @@ export function DragAndDropView() {
 	const handleTouchMove = useCallback(
 		(e: TouchEvent) => {
 			if (draggedIndex === null) return;
-			e.preventDefault(); // Prevent scrolling
+
+			// Detect iOS for conditional preventDefault
+			const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+			const isOldDevice = isIOS && window.devicePixelRatio <= 2;
+
+			// Only prevent scrolling if we're actively dragging
+			if (!isOldDevice) {
+				e.preventDefault(); // Prevent scrolling
+			}
 
 			const coords = getEventCoordinates(e);
 
@@ -234,9 +242,15 @@ export function DragAndDropView() {
 	// Add global mouse and touch event listeners
 	useEffect(() => {
 		if (draggedIndex !== null) {
+			// Detect iOS for optimized event handling
+			const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+			const isOldDevice = isIOS && window.devicePixelRatio <= 2;
+
 			window.addEventListener("mousemove", handleMouseMove);
 			window.addEventListener("mouseup", handleEnd);
-			window.addEventListener("touchmove", handleTouchMove, { passive: false });
+			window.addEventListener("touchmove", handleTouchMove, {
+				passive: isOldDevice, // Use passive on old devices
+			});
 			window.addEventListener("touchend", handleEnd);
 		}
 

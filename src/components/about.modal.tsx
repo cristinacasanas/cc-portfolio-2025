@@ -237,6 +237,10 @@ export const AboutModal = () => {
 
 	const currentLanguage = i18n.language || "fr";
 
+	// Detect old iOS devices for performance optimization
+	const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+	const isOldDevice = isIOS && window.devicePixelRatio <= 2;
+
 	// Disable body scroll when modal is open
 	useEffect(() => {
 		if (isOpen) {
@@ -253,13 +257,25 @@ export const AboutModal = () => {
 
 	if (!isOpen) return null;
 
+	// Simplified animations for old devices
+	const animationProps = isOldDevice
+		? {
+				initial: { opacity: 0 },
+				animate: { opacity: 1 },
+				exit: { opacity: 0 },
+				transition: { duration: 0.2 },
+			}
+		: {
+				initial: { x: -100, opacity: 0 },
+				animate: { x: 0, opacity: 1 },
+				exit: { x: -100, opacity: 0 },
+				transition: { duration: 0.3 },
+			};
+
 	return (
 		<AnimatePresence>
 			<motion.div
-				initial={{ x: -100, opacity: 0 }}
-				animate={{ x: 0, opacity: 1 }}
-				exit={{ x: -100, opacity: 0 }}
-				transition={{ duration: 0.3 }}
+				{...animationProps}
 				className="absolute top-[var(--header-height)] left-0 z-50 flex h-[calc(100dvh-var(--header-height))] w-screen flex-col overflow-y-hidden border-black bg-background-primary backdrop-blur-sm md:w-[455px] md:border-r"
 			>
 				<div className="flex h-full flex-col overflow-hidden">

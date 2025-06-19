@@ -1,6 +1,7 @@
 // import clsx from "clsx"
 import { getLab } from "@/lib/queries/lab";
 import { client } from "@/lib/sanity";
+import { detectDevice, getOptimizedConfig } from "@/utils/device";
 import { useQuery } from "@tanstack/react-query";
 import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -32,14 +33,18 @@ interface GridConfig {
 	MAX_IMAGE_WIDTH: number;
 }
 
-// Configuration constants
+// Get device-specific configuration
+const device = detectDevice();
+const config = getOptimizedConfig(device.isOldDevice, device.isMobile);
+
+// Configuration constants - optimized for mobile
 const GRID_CONFIG: GridConfig = {
-	CELL_SIZE: 350,
-	GRID_LIMIT: 200,
-	MOMENTUM_DECAY: 0.92,
-	CELL_GAP: 30,
-	ANIMATION_THROTTLE: 16,
-	MAX_IMAGE_WIDTH: 300,
+	CELL_SIZE: config.mobileCellSize,
+	GRID_LIMIT: config.mobileGridLimit,
+	MOMENTUM_DECAY: device.isMobile ? 0.95 : 0.92, // Slower decay on mobile for smoother feel
+	CELL_GAP: device.isMobile ? 20 : 30,
+	ANIMATION_THROTTLE: config.animationThrottle,
+	MAX_IMAGE_WIDTH: device.isMobile ? 200 : 300,
 };
 
 // Utility functions with proper typing
@@ -70,7 +75,7 @@ function createDebounce<T extends (...args: never[]) => void>(
 	};
 }
 
-// Memoized Image Cell Component
+// Optimized Image Cell Component for mobile
 const ImageCell = memo<{
 	row: number;
 	col: number;
@@ -80,72 +85,102 @@ const ImageCell = memo<{
 	position: Position;
 	zoom: number;
 	imageSize?: ImageSize;
-}>(({ row, col, imageUrl, cellSize, cellGap, position, zoom, imageSize }) => {
-	const totalCellSize = cellSize + cellGap;
-	const left = col * totalCellSize;
-	const top = row * totalCellSize;
+	isMobile: boolean;
+}>(
+	({
+		row,
+		col,
+		imageUrl,
+		cellSize,
+		cellGap,
+		position,
+		zoom,
+		imageSize,
+		isMobile,
+	}) => {
+		const totalCellSize = cellSize + cellGap;
+		const left = col * totalCellSize;
+		const top = row * totalCellSize;
 
-	if (!imageSize) {
+		if (!imageSize) {
+			return (
+				<div
+					className="absolute"
+					style={{
+						left: `${position.x + left}px`,
+						top: `${position.y + top}px`,
+						width: `${cellSize}px`,
+						height: `${cellSize}px`,
+					}}
+				/>
+			);
+		}
+
+		let displayWidth = imageSize.width;
+		let displayHeight = imageSize.height;
+
+		// Scale down if too wide
+		if (displayWidth > GRID_CONFIG.MAX_IMAGE_WIDTH) {
+			const ratio = GRID_CONFIG.MAX_IMAGE_WIDTH / displayWidth;
+			displayWidth = GRID_CONFIG.MAX_IMAGE_WIDTH;
+			displayHeight = imageSize.height * ratio;
+		}
+
+		// Scale down if too tall
+		const maxHeight = cellSize * 0.9;
+		if (displayHeight > maxHeight) {
+			const ratio = maxHeight / displayHeight;
+			displayHeight = maxHeight;
+			displayWidth = displayWidth * ratio;
+		}
+
+		// Apply zoom
+		displayWidth *= zoom;
+		displayHeight *= zoom;
+
+		// Mobile-specific optimizations
+		const imageProps = isMobile
+			? {
+					loading: "lazy" as const,
+					decoding: "async" as const,
+					// Lower quality images on mobile to reduce memory usage
+					sizes: "(max-width: 768px) 200px, 300px",
+				}
+			: {
+					loading: "lazy" as const,
+					decoding: "async" as const,
+				};
+
 		return (
 			<div
 				className="absolute"
 				style={{
-					left: `${position.x + left}px`,
-					top: `${position.y + top}px`,
-					width: `${cellSize}px`,
-					height: `${cellSize}px`,
+					left: `${position.x + left + (cellSize - displayWidth) / 2}px`,
+					top: `${position.y + top + (cellSize - displayHeight) / 2}px`,
+					width: `${displayWidth}px`,
+					height: `${displayHeight}px`,
+					// Disable CSS transforms on mobile for better performance
+					willChange: config.useWillChange ? "transform" : "auto",
 				}}
-			/>
+			>
+				<img
+					src={imageUrl}
+					alt={`Lab item ${row}-${col}`}
+					className="h-full w-full object-contain"
+					draggable={false}
+					{...imageProps}
+				/>
+			</div>
 		);
-	}
-
-	let displayWidth = imageSize.width;
-	let displayHeight = imageSize.height;
-
-	// Scale down if too wide
-	if (displayWidth > GRID_CONFIG.MAX_IMAGE_WIDTH) {
-		const ratio = GRID_CONFIG.MAX_IMAGE_WIDTH / displayWidth;
-		displayWidth = GRID_CONFIG.MAX_IMAGE_WIDTH;
-		displayHeight = imageSize.height * ratio;
-	}
-
-	// Scale down if too tall
-	const maxHeight = cellSize * 0.9;
-	if (displayHeight > maxHeight) {
-		const ratio = maxHeight / displayHeight;
-		displayHeight = maxHeight;
-		displayWidth = displayWidth * ratio;
-	}
-
-	// Apply zoom
-	displayWidth *= zoom;
-	displayHeight *= zoom;
-
-	return (
-		<div
-			className="absolute"
-			style={{
-				left: `${position.x + left + (cellSize - displayWidth) / 2}px`,
-				top: `${position.y + top + (cellSize - displayHeight) / 2}px`,
-				width: `${displayWidth}px`,
-				height: `${displayHeight}px`,
-			}}
-		>
-			<img
-				src={imageUrl}
-				alt={`Lab item ${row}-${col}`}
-				className="h-full w-full object-contain"
-				loading="lazy"
-				decoding="async"
-			/>
-		</div>
-	);
-});
+	},
+);
 
 // Custom hooks for better separation of concerns
-function useImagePreloading() {
+function useImagePreloading(isMobile: boolean) {
 	const [imagesSizes, setImagesSizes] = useState<Record<string, ImageSize>>({});
 	const imageLoadingCache = useRef<Set<string>>(new Set());
+	const maxConcurrentLoads = isMobile ? 3 : 6; // Limit concurrent image loads on mobile
+	const currentLoads = useRef(0);
 
 	const preloadImageSize = useCallback(
 		(url: string, cellKey: string) => {
@@ -153,7 +188,13 @@ function useImagePreloading() {
 				return;
 			}
 
+			// Limit concurrent loads on mobile
+			if (currentLoads.current >= maxConcurrentLoads) {
+				return;
+			}
+
 			imageLoadingCache.current.add(cellKey);
+			currentLoads.current++;
 
 			const img = new Image();
 			img.onload = () => {
@@ -165,26 +206,38 @@ function useImagePreloading() {
 					},
 				}));
 				imageLoadingCache.current.delete(cellKey);
+				currentLoads.current--;
 			};
 			img.onerror = () => {
 				imageLoadingCache.current.delete(cellKey);
+				currentLoads.current--;
 			};
-			img.src = url;
+
+			// Mobile-specific: use smaller image if available
+			if (isMobile && url.includes("sanity")) {
+				// Add Sanity image transformation for mobile
+				const mobileUrl = url.includes("?")
+					? `${url}&w=400&q=75`
+					: `${url}?w=400&q=75`;
+				img.src = mobileUrl;
+			} else {
+				img.src = url;
+			}
 		},
-		[imagesSizes],
+		[imagesSizes, maxConcurrentLoads, isMobile],
 	);
 
 	return { imagesSizes, preloadImageSize };
 }
 
-function useMomentum() {
+function useMomentum(isMobile: boolean) {
 	const momentumRef = useRef<Position>({ x: 0, y: 0 });
 	const lastFrameTime = useRef(performance.now());
 	const animationFrameId = useRef<number | null>(null);
 
 	const applyMomentum = useCallback(
 		(setPosition: React.Dispatch<React.SetStateAction<Position>>) => {
-			const threshold = 0.5;
+			const threshold = isMobile ? 1 : 0.5; // Higher threshold on mobile
 			if (
 				Math.abs(momentumRef.current.x) < threshold &&
 				Math.abs(momentumRef.current.y) < threshold
@@ -217,14 +270,14 @@ function useMomentum() {
 				applyMomentum(setPosition),
 			);
 		},
-		[],
+		[isMobile],
 	);
 
 	const startMomentum = useCallback(
 		(setPosition: React.Dispatch<React.SetStateAction<Position>>) => {
 			if (
-				(Math.abs(momentumRef.current.x) > 0.5 ||
-					Math.abs(momentumRef.current.y) > 0.5) &&
+				(Math.abs(momentumRef.current.x) > (isMobile ? 1 : 0.5) ||
+					Math.abs(momentumRef.current.y) > (isMobile ? 1 : 0.5)) &&
 				!animationFrameId.current
 			) {
 				lastFrameTime.current = performance.now();
@@ -233,7 +286,7 @@ function useMomentum() {
 				);
 			}
 		},
-		[applyMomentum],
+		[applyMomentum, isMobile],
 	);
 
 	const stopMomentum = useCallback(() => {
@@ -245,7 +298,7 @@ function useMomentum() {
 	}, []);
 
 	const updateMomentum = useCallback(
-		(deltaX: number, deltaY: number, factor = 6) => {
+		(deltaX: number, deltaY: number, factor = isMobile ? 4 : 6) => {
 			const now = performance.now();
 			const deltaTime = now - lastFrameTime.current;
 
@@ -257,7 +310,7 @@ function useMomentum() {
 				lastFrameTime.current = now;
 			}
 		},
-		[],
+		[isMobile],
 	);
 
 	const addMomentum = useCallback(
@@ -305,6 +358,13 @@ function useTouchGestures() {
 }
 
 export const InfiniteImageGrid = () => {
+	// Device detection at component level
+	const deviceInfo = useMemo(() => detectDevice(), []);
+	const optimizedConfig = useMemo(
+		() => getOptimizedConfig(deviceInfo.isOldDevice, deviceInfo.isMobile),
+		[deviceInfo.isOldDevice, deviceInfo.isMobile],
+	);
+
 	const { data } = useQuery({
 		queryKey: ["lab-canvas"],
 		queryFn: async () => {
@@ -317,29 +377,35 @@ export const InfiniteImageGrid = () => {
 		refetchOnMount: false,
 	});
 
+	// Limit images on mobile for better performance
 	const allImages = useMemo(() => {
 		if (!data) return [];
-		return data.flatMap(
+		const images = data.flatMap(
 			(lab) =>
 				lab.images
 					?.map((img) => (img as { asset?: { url?: string } }).asset?.url)
 					.filter((url): url is string => Boolean(url)) || [],
 		);
-	}, [data]);
+
+		// Limit images on mobile
+		return deviceInfo.isMobile ? images.slice(0, 50) : images;
+	}, [data, deviceInfo.isMobile]);
 
 	// State
 	const gridRef = useRef<HTMLDivElement>(null);
 	const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
-	const [zoom, setZoom] = useState(1);
+	const [zoom, setZoom] = useState(deviceInfo.isMobile ? 0.8 : 1); // Start zoomed out on mobile
 	const [visibleCells, setVisibleCells] = useState<CellPosition[]>([]);
 	const [isDragging, setIsDragging] = useState(false);
 	const [dragStart, setDragStart] = useState<Position>({ x: 0, y: 0 });
 	const [lastTouchDistance, setLastTouchDistance] = useState<number>(0);
 
-	// Custom hooks
-	const { imagesSizes, preloadImageSize } = useImagePreloading();
+	// Custom hooks with mobile awareness
+	const { imagesSizes, preloadImageSize } = useImagePreloading(
+		deviceInfo.isMobile,
+	);
 	const { startMomentum, stopMomentum, updateMomentum, addMomentum } =
-		useMomentum();
+		useMomentum(deviceInfo.isMobile);
 	const { getTouchDistance, getTouchCenter } = useTouchGestures();
 
 	// Computed values
@@ -355,7 +421,7 @@ export const InfiniteImageGrid = () => {
 		[allImages],
 	);
 
-	// Visible cells calculation
+	// Visible cells calculation - optimized for mobile
 	const updateVisibleCells = useCallback(() => {
 		if (!gridRef.current) return;
 
@@ -364,7 +430,7 @@ export const InfiniteImageGrid = () => {
 		const viewportHeight = rect.height;
 
 		const totalCellSize = actualCellSize + actualCellGap;
-		const buffer = 2;
+		const buffer = optimizedConfig.mobileBuffer;
 
 		const startCol = Math.floor(-position.x / totalCellSize) - buffer;
 		const startRow = Math.floor(-position.y / totalCellSize) - buffer;
@@ -374,6 +440,8 @@ export const InfiniteImageGrid = () => {
 			startRow + Math.ceil(viewportHeight / totalCellSize) + buffer * 2;
 
 		const cells: CellPosition[] = [];
+		let cellCount = 0;
+
 		for (let row = startRow; row <= endRow; row++) {
 			for (let col = startCol; col <= endCol; col++) {
 				if (
@@ -383,17 +451,41 @@ export const InfiniteImageGrid = () => {
 					col <= GRID_CONFIG.GRID_LIMIT
 				) {
 					cells.push({ row, col });
+					cellCount++;
+
+					// Limit cells on mobile
+					if (
+						deviceInfo.isMobile &&
+						cellCount >= optimizedConfig.maxVisibleCells
+					) {
+						break;
+					}
 				}
+			}
+			if (deviceInfo.isMobile && cellCount >= optimizedConfig.maxVisibleCells) {
+				break;
 			}
 		}
 
 		setVisibleCells(cells);
-	}, [position, actualCellSize, actualCellGap]);
+	}, [
+		position,
+		actualCellSize,
+		actualCellGap,
+		optimizedConfig.mobileBuffer,
+		optimizedConfig.maxVisibleCells,
+		deviceInfo.isMobile,
+	]);
 
-	// Event handlers
+	// Event handlers - optimized for mobile
 	const handleWheelEvent = useCallback(
 		(e: WheelEvent) => {
 			e.preventDefault();
+
+			// Disable zoom on mobile (pinch-to-zoom will handle it)
+			if (deviceInfo.isMobile) {
+				return;
+			}
 
 			if (e.ctrlKey) {
 				const zoomDelta = -e.deltaY * 0.001;
@@ -412,12 +504,15 @@ export const InfiniteImageGrid = () => {
 			addMomentum(-deltaX * (1 / zoom), -deltaY * (1 / zoom));
 			startMomentum(setPosition);
 		},
-		[zoom, addMomentum, startMomentum],
+		[zoom, addMomentum, startMomentum, deviceInfo.isMobile],
 	);
 
 	const handleTouchStart = useCallback(
 		(e: TouchEvent) => {
-			e.preventDefault();
+			// Use passive events on mobile as much as possible
+			if (!optimizedConfig.usePassiveTouch) {
+				e.preventDefault();
+			}
 			stopMomentum();
 
 			const touches = e.touches;
@@ -431,18 +526,26 @@ export const InfiniteImageGrid = () => {
 				setLastTouchDistance(distance);
 			}
 		},
-		[stopMomentum, getTouchDistance],
+		[stopMomentum, getTouchDistance, optimizedConfig.usePassiveTouch],
 	);
 
 	const handleTouchMove = useCallback(
 		(e: TouchEvent) => {
-			e.preventDefault();
-
 			const touches = e.touches;
 
 			if (touches.length === 1 && isDragging) {
+				// Only prevent default when necessary on mobile
+				if (!optimizedConfig.usePassiveTouch) {
+					e.preventDefault();
+				}
+
 				const dx = touches[0].clientX - dragStart.x;
 				const dy = touches[0].clientY - dragStart.y;
+
+				// More aggressive throttling on mobile
+				if (deviceInfo.isMobile && Math.abs(dx) < 3 && Math.abs(dy) < 3) {
+					return;
+				}
 
 				updateMomentum(dx, dy);
 
@@ -453,12 +556,17 @@ export const InfiniteImageGrid = () => {
 
 				setDragStart({ x: touches[0].clientX, y: touches[0].clientY });
 			} else if (touches.length === 2) {
+				e.preventDefault(); // Always prevent for pinch zoom
+
 				const distance = getTouchDistance(touches);
 				const center = getTouchCenter(touches);
 
 				if (lastTouchDistance > 0) {
 					const scale = distance / lastTouchDistance;
-					const newZoom = Math.max(0.5, Math.min(3, zoom * scale));
+					const newZoom = Math.max(
+						deviceInfo.isMobile ? 0.5 : 0.5,
+						Math.min(deviceInfo.isMobile ? 2 : 3, zoom * scale),
+					);
 
 					const zoomDelta = newZoom - zoom;
 					const deltaX =
@@ -485,31 +593,38 @@ export const InfiniteImageGrid = () => {
 			lastTouchDistance,
 			zoom,
 			updateMomentum,
+			deviceInfo.isMobile,
+			optimizedConfig.usePassiveTouch,
 		],
 	);
 
 	const handleTouchEnd = useCallback(
 		(e: TouchEvent) => {
-			e.preventDefault();
+			if (!optimizedConfig.usePassiveTouch) {
+				e.preventDefault();
+			}
 			setIsDragging(false);
 			setLastTouchDistance(0);
 			startMomentum(setPosition);
 		},
-		[startMomentum],
+		[startMomentum, optimizedConfig.usePassiveTouch],
 	);
 
 	const handleMouseDown = useCallback(
 		(e: React.MouseEvent) => {
+			// Disable mouse events on mobile
+			if (deviceInfo.isMobile) return;
+
 			stopMomentum();
 			setIsDragging(true);
 			setDragStart({ x: e.clientX, y: e.clientY });
 		},
-		[stopMomentum],
+		[stopMomentum, deviceInfo.isMobile],
 	);
 
 	const handleMouseMove = useCallback(
 		(e: React.MouseEvent) => {
-			if (!isDragging) return;
+			if (!isDragging || deviceInfo.isMobile) return;
 
 			const dx = e.clientX - dragStart.x;
 			const dy = e.clientY - dragStart.y;
@@ -523,16 +638,20 @@ export const InfiniteImageGrid = () => {
 
 			setDragStart({ x: e.clientX, y: e.clientY });
 		},
-		[isDragging, dragStart, updateMomentum],
+		[isDragging, dragStart, updateMomentum, deviceInfo.isMobile],
 	);
 
 	const handleMouseUp = useCallback(() => {
+		if (deviceInfo.isMobile) return;
 		setIsDragging(false);
 		startMomentum(setPosition);
-	}, [startMomentum]);
+	}, [startMomentum, deviceInfo.isMobile]);
 
 	const handleKeyDown = useCallback(
 		(e: KeyboardEvent) => {
+			// Disable keyboard navigation on mobile
+			if (deviceInfo.isMobile) return;
+
 			const moveAmount = 100 * (1 / zoom);
 
 			switch (e.key) {
@@ -556,7 +675,7 @@ export const InfiniteImageGrid = () => {
 					break;
 			}
 		},
-		[zoom],
+		[zoom, deviceInfo.isMobile],
 	);
 
 	// Event listeners setup
@@ -564,35 +683,52 @@ export const InfiniteImageGrid = () => {
 		const gridElement = gridRef.current;
 		if (!gridElement) return;
 
-		const throttledWheel = createThrottle(handleWheelEvent, 8);
-		const throttledTouchMove = createThrottle(handleTouchMove, 16);
+		const throttledWheel = createThrottle(
+			handleWheelEvent,
+			optimizedConfig.wheelThrottle,
+		);
+		const throttledTouchMove = createThrottle(
+			handleTouchMove,
+			optimizedConfig.touchThrottle,
+		);
 		const throttledKeyDown = createThrottle(handleKeyDown, 50);
 
-		gridElement.addEventListener("wheel", throttledWheel, {
-			passive: false,
-			capture: true,
-		});
+		// Only add wheel events on desktop
+		if (!deviceInfo.isMobile) {
+			gridElement.addEventListener("wheel", throttledWheel, {
+				passive: false,
+				capture: true,
+			});
+		}
+
 		gridElement.addEventListener("touchstart", handleTouchStart, {
-			passive: false,
-			capture: true,
-		});
-		gridElement.addEventListener("touchmove", throttledTouchMove, {
-			passive: false,
-			capture: true,
-		});
-		gridElement.addEventListener("touchend", handleTouchEnd, {
-			passive: false,
+			passive: optimizedConfig.usePassiveTouch,
 			capture: true,
 		});
 
-		window.addEventListener("keydown", throttledKeyDown);
+		gridElement.addEventListener("touchmove", throttledTouchMove, {
+			passive: false, // Keep non-passive for pan/zoom
+			capture: true,
+		});
+
+		gridElement.addEventListener("touchend", handleTouchEnd, {
+			passive: true,
+			capture: true,
+		});
+
+		// Only add keyboard events on desktop
+		if (!deviceInfo.isMobile) {
+			window.addEventListener("keydown", throttledKeyDown);
+		}
 
 		return () => {
-			gridElement.removeEventListener("wheel", throttledWheel);
+			if (!deviceInfo.isMobile) {
+				gridElement.removeEventListener("wheel", throttledWheel);
+				window.removeEventListener("keydown", throttledKeyDown);
+			}
 			gridElement.removeEventListener("touchstart", handleTouchStart);
 			gridElement.removeEventListener("touchmove", throttledTouchMove);
 			gridElement.removeEventListener("touchend", handleTouchEnd);
-			window.removeEventListener("keydown", throttledKeyDown);
 		};
 	}, [
 		handleWheelEvent,
@@ -600,29 +736,40 @@ export const InfiniteImageGrid = () => {
 		handleTouchMove,
 		handleTouchEnd,
 		handleKeyDown,
+		optimizedConfig.wheelThrottle,
+		optimizedConfig.touchThrottle,
+		deviceInfo.isMobile,
 	]);
 
-	// Update visible cells with debouncing
+	// Update visible cells with more aggressive debouncing on mobile
 	const debouncedUpdateVisibleCells = useMemo(
-		() => createDebounce(updateVisibleCells, 10),
-		[updateVisibleCells],
+		() => createDebounce(updateVisibleCells, deviceInfo.isMobile ? 50 : 10),
+		[updateVisibleCells, deviceInfo.isMobile],
 	);
 
 	useEffect(() => {
 		debouncedUpdateVisibleCells();
 
-		const handleResize = createDebounce(updateVisibleCells, 100);
+		const handleResize = createDebounce(
+			updateVisibleCells,
+			deviceInfo.isMobile ? 200 : 100,
+		);
 		window.addEventListener("resize", handleResize);
 
 		return () => {
 			window.removeEventListener("resize", handleResize);
 		};
-	}, [updateVisibleCells, debouncedUpdateVisibleCells]);
+	}, [updateVisibleCells, debouncedUpdateVisibleCells, deviceInfo.isMobile]);
 
-	// Rendered cells with batch preloading
+	// Rendered cells with mobile optimizations
 	const renderedCells = useMemo(() => {
-		// Batch preload images
-		for (const { row, col } of visibleCells) {
+		// Limit batch preloading on mobile
+		const cellsToPreload = deviceInfo.isMobile
+			? visibleCells.slice(0, optimizedConfig.maxVisibleCells / 2)
+			: visibleCells;
+
+		// Batch preload images with mobile limits
+		for (const { row, col } of cellsToPreload) {
 			const cellKey = `${row}-${col}`;
 			const imageUrl = getImageUrl(row, col);
 			preloadImageSize(imageUrl, cellKey);
@@ -644,6 +791,7 @@ export const InfiniteImageGrid = () => {
 					position={position}
 					zoom={zoom}
 					imageSize={imageSize}
+					isMobile={deviceInfo.isMobile}
 				/>
 			);
 		});
@@ -656,6 +804,8 @@ export const InfiniteImageGrid = () => {
 		imagesSizes,
 		getImageUrl,
 		preloadImageSize,
+		deviceInfo.isMobile,
+		optimizedConfig.maxVisibleCells,
 	]);
 
 	// Initialize position
@@ -684,10 +834,19 @@ export const InfiniteImageGrid = () => {
 					WebkitUserSelect: "none",
 					WebkitTouchCallout: "none",
 					WebkitTapHighlightColor: "transparent",
-					willChange: "transform",
+					// Mobile-optimized CSS
+					willChange: optimizedConfig.useWillChange ? "transform" : "auto",
+					backfaceVisibility: "hidden",
+					perspective: "1000px",
 				}}
 			>
-				<div className="absolute inset-0" style={{ willChange: "transform" }}>
+				<div
+					className="absolute inset-0"
+					style={{
+						willChange: optimizedConfig.useWillChange ? "transform" : "auto",
+						backfaceVisibility: "hidden",
+					}}
+				>
 					{renderedCells}
 				</div>
 			</div>
