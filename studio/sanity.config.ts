@@ -9,11 +9,10 @@ export default defineConfig({
   name: 'default',
   title: 'cc-portfolio',
 
-  projectId: process.env.VITE_SANITY_PROJECT_ID || 'xx7yu2hd',
+  projectId: process.env.VITE_SANITY_PROJECT_ID || '7sdw728e',
   dataset: process.env.VITE_SANITY_DATASET || 'production',
 
   plugins: [
-    visionTool(),
     structureTool({
        structure: (S, context) => {
         return S.list()
@@ -38,7 +37,8 @@ export default defineConfig({
               ),
           ])
       },
-    })
+    }),
+    visionTool(),
   ],
 
   schema: {

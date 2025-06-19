@@ -13,6 +13,7 @@
 import { Route as rootRoute } from './routes/__root'
 import { Route as ProjectsImport } from './routes/projects'
 import { Route as LabImport } from './routes/lab'
+import { Route as SplatImport } from './routes/$$'
 import { Route as IndexImport } from './routes/index'
 
 // Create/Update Routes
@@ -26,6 +27,12 @@ const ProjectsRoute = ProjectsImport.update({
 const LabRoute = LabImport.update({
   id: '/lab',
   path: '/lab',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const SplatRoute = SplatImport.update({
+  id: '/$$',
+  path: '/$$',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -44,6 +51,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/$$': {
+      id: '/$$'
+      path: '/$$'
+      fullPath: '/$$'
+      preLoaderRoute: typeof SplatImport
       parentRoute: typeof rootRoute
     }
     '/lab': {
@@ -67,12 +81,14 @@ declare module '@tanstack/react-router' {
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$$': typeof SplatRoute
   '/lab': typeof LabRoute
   '/projects': typeof ProjectsRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$$': typeof SplatRoute
   '/lab': typeof LabRoute
   '/projects': typeof ProjectsRoute
 }
@@ -80,27 +96,30 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
+  '/$$': typeof SplatRoute
   '/lab': typeof LabRoute
   '/projects': typeof ProjectsRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/lab' | '/projects'
+  fullPaths: '/' | '/$$' | '/lab' | '/projects'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/lab' | '/projects'
-  id: '__root__' | '/' | '/lab' | '/projects'
+  to: '/' | '/$$' | '/lab' | '/projects'
+  id: '__root__' | '/' | '/$$' | '/lab' | '/projects'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SplatRoute: typeof SplatRoute
   LabRoute: typeof LabRoute
   ProjectsRoute: typeof ProjectsRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SplatRoute: SplatRoute,
   LabRoute: LabRoute,
   ProjectsRoute: ProjectsRoute,
 }
@@ -116,12 +135,16 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
+        "/$$",
         "/lab",
         "/projects"
       ]
     },
     "/": {
       "filePath": "index.tsx"
+    },
+    "/$$": {
+      "filePath": "$$.tsx"
     },
     "/lab": {
       "filePath": "lab.tsx"
